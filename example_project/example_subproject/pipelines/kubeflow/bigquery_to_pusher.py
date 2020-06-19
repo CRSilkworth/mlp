@@ -6,11 +6,11 @@ from __future__ import print_function
 import datetime
 import os
 
-from example_project.example_subproject.pipelines.defs.bigquery_to_pusher import create_pipeline
+from example_subproject.pipelines.defs.bigquery_to_pusher import create_pipeline
 from tfx.orchestration.kubeflow import kubeflow_dag_runner
 
-from example_project.example_subproject import preprocess
-from example_project.example_subproject import train
+from example_subproject import preprocess
+from example_subproject import train
 from mlp.utils.dirs import pipeline_dirs
 
 _MLP_PROJECT = 'example_project'
@@ -83,7 +83,7 @@ trainer_fn = train.trainer_factory(
   label_key=_LABEL_KEY,
   warmup_prop=_WARMUP_PROP,
   cooldown_prop=_COOLDOWN_PROP,
-  warm_start_from=_WARM_START_FROM,
+  # warm_start_from=_WARM_START_FROM,
   save_summary_steps=_SAVE_SUMMARY_STEPS,
   save_checkpoints_secs=_SAVE_CHECKPOINT_SECS
 )

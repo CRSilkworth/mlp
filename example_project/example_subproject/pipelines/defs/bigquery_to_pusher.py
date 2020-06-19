@@ -112,15 +112,15 @@ def create_pipeline(
 
   # Pushes schema to a particular directory. Only needed if schema is required
   # for other pipelines/processes.
-  # schema_pusher = SchemaPusher(
-  #     artifact=infer_schema.outputs['schema'],
-  #     push_destination=pusher_pb2.PushDestination(
-  #       filesystem=pusher_pb2.PushDestination.Filesystem(
-  #         base_directory=schema_uri
-  #       )
-  #     ),
-  #     instance_name='schema_pusher'
-  # )
+  schema_pusher = SchemaPusher(
+      artifact=infer_schema.outputs['schema'],
+      push_destination=pusher_pb2.PushDestination(
+        filesystem=pusher_pb2.PushDestination.Filesystem(
+          base_directory=schema_uri
+        )
+      ),
+      instance_name='schema_pusher'
+  )
 
   transform_graph_pusher = TransformGraphPusher(
       artifact=transform.outputs['transform_graph'],
@@ -150,7 +150,7 @@ def create_pipeline(
       transform,
       trainer,
       pusher,
-      # schema_pusher,
+      schema_pusher,
       transform_graph_pusher
     ],
     enable_cache=True,

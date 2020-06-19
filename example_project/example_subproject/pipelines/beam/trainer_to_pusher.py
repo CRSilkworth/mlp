@@ -5,11 +5,11 @@ from __future__ import print_function
 
 import os
 
-from example_project.example_subproject.pipelines.defs.trainer_to_pusher import create_pipeline
+from example_subproject.pipelines.defs.trainer_to_pusher import create_pipeline
 from tfx.orchestration.beam.beam_dag_runner import BeamDagRunner
 
-from example_project.example_subproject import train
-import example_project.example_subproject.pipelines.beam.bigquery_to_pusher as full
+from example_subproject import train
+import example_subproject.pipelines.beam.bigquery_to_pusher as full
 
 from mlp.utils.dir import pipeline_dirs
 
@@ -60,7 +60,7 @@ trainer_fn = train.trainer_factory(
   categorical_feature_keys=full._CATEGORICAL_FEATURE_KEYS,
   numerical_feature_keys=full._NUMERICAL_FEATURE_KEYS,
   label_key=full._LABEL_KEY,
-  warm_start_from=_WARM_START_FROM,
+  # warm_start_from=_WARM_START_FROM,
   warmup_prop=_WARMUP_PROP,
   cooldown_prop=_COOLDOWN_PROP,
   save_summary_steps=_SAVE_SUMMARY_STEPS,

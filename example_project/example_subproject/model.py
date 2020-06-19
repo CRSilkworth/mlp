@@ -10,7 +10,7 @@ class BasicNN(tf.keras.Model):
     self,
     hidden_layer_dims: List[int],
     num_labels: int,
-    dropout_rate: Optional[float] = 0.7,
+    dropout_rate: Optional[float] = 0.3,
     ):
     """Construct an BasicNN model.
 

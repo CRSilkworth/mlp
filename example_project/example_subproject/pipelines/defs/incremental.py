@@ -63,12 +63,18 @@ def create_pipeline(
     artifact_type=standard_artifacts.TransformGraph,
     reimport=False
   )
+  model_importer = ImporterNode(
+    instance_name='import_model',
+    source_uri=model_uri,
+    artifact_type=standard_artifacts.Model,
+    reimport=False
+  )
 
   # Performs transformations and feature engineering in training and serving.
   transform = TransformWithGraph(
       examples=example_gen.outputs['examples'],
       schema=importer.outputs['result'],
-      transform_graph=graph_importer.outputs['results']
+      transform_graph=graph_importer.outputs['result']
   )
 
   trainer_kwargs = {}
@@ -86,10 +92,11 @@ def create_pipeline(
   trainer = Trainer(
     transformed_examples=transform.outputs['transformed_examples'],
     schema=importer.outputs['result'],
-    transform_graph=transform.outputs['transform_graph'],
+    transform_graph=graph_importer.outputs['result'],
     train_args=trainer_pb2.TrainArgs(num_steps=num_train_steps),
     eval_args=trainer_pb2.EvalArgs(num_steps=num_eval_steps),
     trainer_fn='{}.trainer_fn'.format(pipeline_mod),
+    base_model=model_importer.outputs['result'],
     **trainer_kwargs
   )
 
@@ -116,6 +123,8 @@ def create_pipeline(
     components=[
       example_gen,
       importer,
+      graph_importer,
+      model_importer,
       transform,
       trainer,
       pusher

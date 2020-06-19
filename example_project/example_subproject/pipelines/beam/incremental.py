@@ -6,13 +6,13 @@ from __future__ import print_function
 import datetime
 import os
 
-from example_project.example_subproject.pipelines.defs.incremental import create_pipeline
+from example_subproject.pipelines.defs.incremental import create_pipeline
 from tfx.orchestration.beam.beam_dag_runner import BeamDagRunner
 
-from example_project.example_subproject import preprocess
-from example_project.example_subproject import train
-import example_project.example_subproject.pipelines.beam.bigquery_to_pusher as full
-from mlp.utils.dir import pipeline_dirs
+from example_subproject import preprocess
+from example_subproject import train
+import example_subproject.pipelines.beam.bigquery_to_pusher as full
+from mlp.utils.dirs import pipeline_dirs
 
 _PIPELINE_TYPE = 'incremental'
 
@@ -63,8 +63,8 @@ _SAVE_SUMMARY_STEPS = 1
 _SAVE_CHECKPOINT_SECS = 14400
 _LEARNING_RATE = 2e-5
 
-_WARM_START_FROM = os.path.join(full._RUN_DIR, 'tfx', full.pipeline_name, '*/data/Trainer/model/*/serving_model_dir/checkpoint')
-_ASSET_DIR = os.path.join(full._RUN_DIR, 'tfx', full.pipeline_name, '*/data/Transform/transform_graph/*/transform_fn/assets/')
+# _WARM_START_FROM = os.path.join(full._RUN_DIR, 'tfx', full.pipeline_name, '*/data/Trainer/model/*/serving_model_dir/checkpoint')
+# _ASSET_DIR = os.path.join(full._RUN_DIR, 'tfx', full.pipeline_name, '*/data/Transform/transform_graph/*/transform_fn/assets/')
 
 pipeline_name = '-'.join([
   full._MLP_PROJECT,
@@ -90,7 +90,6 @@ pipeline_root, _, __, ___ = pipeline_dirs(
 
 trainer_fn = train.trainer_factory(
   batch_size=full._BATCH_SIZE,
-  max_seq_length=full._MAX_SEQ_LEN,
   learning_rate=_LEARNING_RATE,
   hidden_layer_dims=full._HIDDEN_LAYER_DIMS,
   categorical_feature_keys=full._CATEGORICAL_FEATURE_KEYS,
@@ -98,19 +97,15 @@ trainer_fn = train.trainer_factory(
   label_key=full._LABEL_KEY,
   warmup_prop=_WARMUP_PROP,
   cooldown_prop=_COOLDOWN_PROP,
-  non_string_keys=full._NON_STRING_KEYS,
-  warm_start_from=_WARM_START_FROM,
+  # warm_start_from=full.model_uri,
   save_summary_steps=_SAVE_SUMMARY_STEPS,
   save_checkpoints_secs=_SAVE_CHECKPOINT_SECS
 )
 
 preprocessing_fn = preprocess.preprocess_factory(
-  vocab_feature_keys=full._VOCAB_FEATURE_KEYS,
   categorical_feature_keys=full._CATEGORICAL_FEATURE_KEYS,
   numerical_feature_keys=full._NUMERICAL_FEATURE_KEYS,
   label_key=full._LABEL_KEY,
-  asset_dir=_ASSET_DIR,
-  num_oov_dict=full._NUM_OOV_DICT
 )
 
 beam_pipeline_args = [

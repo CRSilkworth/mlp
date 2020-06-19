@@ -8,9 +8,9 @@ import tensorflow_transform as tft
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 
-from example_project.example_subproject import model
-from example_project.example_subproject import preprocess as pre
-from example_project.example_subproject import metrics
+from example_subproject import model
+from example_subproject import preprocess as pre
+from example_subproject import metrics
 from mlp.tensorflow.learning_rate_schedules import piecewise_learning_rate
 
 
@@ -184,9 +184,9 @@ def trainer_factory(
   label_key: Text,
   warmup_prop: float,
   cooldown_prop: float,
-  warm_start_from: Text,
   save_summary_steps: int,
-  save_checkpoints_secs: int
+  save_checkpoints_secs: int,
+  warm_start_from: Optional[Text] = None,
 ) -> Callable:
   """
   Define a trainer_fn function to pass to the Trainer component.
