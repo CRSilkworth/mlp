@@ -29,6 +29,7 @@ import tensorflow_transform as tft
 import tensorflow_transform.beam as tft_beam
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_transform.tf_metadata import schema_utils
+from tensorflow_transform.beam import analyzer_cache
 from google.protobuf import json_format
 import apache_beam as beam
 from tfx.proto import example_gen_pb2
@@ -53,6 +54,9 @@ _DEFAULT_TRANSFORMED_EXAMPLES_PREFIX = 'transformed_examples'
 
 _TRANSFORM_INTERNAL_FEATURE_FOR_KEY = '__TFT_PASS_KEY__'
 
+_TEMP_DIR_IN_TRANSFORM_OUTPUT = '.temp_path'
+
+
 class _Dataset(object):
   """Dataset to be analyzed and/or transformed.
 
@@ -69,6 +73,8 @@ class _Dataset(object):
       file_pattern: The file pattern of the dataset.
       materialize_output_path: The file path where to write the dataset.
     """
+    file_pattern_suffix = os.path.join(
+        *file_pattern.split(os.sep)[-self._FILE_PATTERN_SUFFIX_LENGTH:])
     self._file_pattern = file_pattern
     self._materialize_output_path = materialize_output_path
     self._index = None
@@ -76,7 +82,13 @@ class _Dataset(object):
     self._decoded = None
     self._transformed = None
     self._transformed_and_serialized = None
-
+    if hasattr(analyzer_cache, 'DatasetKey'):
+      self._dataset_key = analyzer_cache.DatasetKey(file_pattern_suffix)
+    else:
+      self._dataset_key = analyzer_cache.make_dataset_key(file_pattern_suffix)
+    print('-'*50)
+    print(self._dataset_key)
+    print('-'*50)
   @property
   def file_pattern(self):
     assert self._file_pattern
@@ -137,6 +149,23 @@ class _Dataset(object):
   def transformed_and_serialized(self, val):
     self._transformed_and_serialized = val
 
+def _GetSchemaProto(
+    metadata: dataset_metadata.DatasetMetadata) -> schema_pb2.Schema:
+  """Gets the schema proto associated with a DatasetMetadata.
+
+  This is needed because tensorflow_transform 0.13 and tensorflow_transform 0.14
+  have a different API for DatasetMetadata.
+
+  Args:
+    metadata: A dataset_metadata.DatasetMetadata.
+
+  Returns:
+    A schema_pb2.Schema.
+  """
+  # `schema` is either a Schema proto or dataset_schema.Schema.
+  schema = metadata.schema
+  # In the case where it's a dataset_schema.Schema, fetch the schema proto.
+  return getattr(schema, '_schema_proto', schema)
 
 class Executor(base_executor.BaseExecutor):
   """Executor for Slack component."""
@@ -169,6 +198,37 @@ class Executor(base_executor.BaseExecutor):
 
     """
     self._log_startup(input_dict, output_dict, exec_properties)
+    transform_graph_uri = artifact_utils.get_single_uri(
+        input_dict[TRANSFORM_GRAPH_KEY])
+    temp_path = os.path.join(transform_graph_uri, _TEMP_DIR_IN_TRANSFORM_OUTPUT)
+    # transformed_schema_file = os.path.join(
+    #   transform_graph_uri,
+    #   tft.TFTransformOutput.TRANSFORMED_METADATA_DIR,
+    #   'schema.pbtxt'
+    # )
+    # transformed_schema_proto = io_utils.parse_pbtxt_file(
+    #   transformed_schema_file,
+    #   schema_pb2.Schema()
+    # )
+    transformed_train_output = artifact_utils.get_split_uri(
+      output_dict[TRANSFORMED_EXAMPLES_KEY], 'train')
+    transformed_eval_output = artifact_utils.get_split_uri(
+      output_dict[TRANSFORMED_EXAMPLES_KEY], 'eval')
+
+    tf_transform_output = tft.TFTransformOutput(transform_graph_uri)
+    # transform_output_dataset_metadata = dataset_metadata.DatasetMetadata(
+    #   schema=transformed_schema_proto
+    # )
+
+    # transform_fn = (tf_transform_output.transform_raw_features, transform_output_dataset_metadata)
+    # feature_spec = schema_utils.schema_as_feature_spec(schema_proto).feature_spec
+    schema_file = io_utils.get_only_uri_in_dir(
+        artifact_utils.get_single_uri(input_dict[SCHEMA_KEY]))
+    schema_proto = io_utils.parse_pbtxt_file(schema_file, schema_pb2.Schema())
+    transform_input_dataset_metadata = dataset_metadata.DatasetMetadata(
+      schema_proto
+    )
+
     train_data_uri = artifact_utils.get_split_uri(
       input_dict[EXAMPLES_KEY],
       'train'
@@ -177,65 +237,80 @@ class Executor(base_executor.BaseExecutor):
       input_dict[EXAMPLES_KEY],
       'eval'
     )
+    analyze_data_paths = [io_utils.all_files_pattern(train_data_uri)]
     transform_data_paths = [
       io_utils.all_files_pattern(train_data_uri),
       io_utils.all_files_pattern(eval_data_uri),
     ]
-    transform_graph = artifact_utils.get_single_uri(
-        input_dict[TRANSFORM_GRAPH_KEY])
-    schema_file = io_utils.get_only_uri_in_dir(
-        artifact_utils.get_single_uri(input_dict[SCHEMA_KEY]))
-
-    transformed_train_output = artifact_utils.get_split_uri(
-      output_dict[TRANSFORMED_EXAMPLES_KEY], 'train')
-    transformed_eval_output = artifact_utils.get_split_uri(
-      output_dict[TRANSFORMED_EXAMPLES_KEY], 'eval')
     materialize_output_paths = [
       os.path.join(transformed_train_output, _DEFAULT_TRANSFORMED_EXAMPLES_PREFIX),
       os.path.join(transformed_eval_output, _DEFAULT_TRANSFORMED_EXAMPLES_PREFIX)
     ]
-
-    schema_proto = io_utils.parse_pbtxt_file(schema_file, schema_pb2.Schema())
-    tf_transform_output = tft.TFTransformOutput(transform_graph)
-
-    # feature_spec = schema_utils.schema_as_feature_spec(schema_proto).feature_spec
-    transform_input_dataset_metadata = dataset_metadata.DatasetMetadata(
-      schema_proto
-    )
-
     transform_data_list = self._MakeDatasetList(
       transform_data_paths,
       materialize_output_paths
     )
+    analyze_data_list = self._MakeDatasetList(
+      analyze_data_paths,
+    )
 
     with self._make_beam_pipeline() as pipeline:
-      for dataset in transform_data_list:
-        infix = 'TransformIndex{}'.format(dataset.index)
-        transform_decode_fn = tft.coders.ExampleProtoCoder(schema_proto, serialized=True).decode
-        dataset.serialized = (
-          pipeline
-          | 'ReadDataset[{}]'.format(infix) >> self._ReadExamples(
-              dataset, transform_input_dataset_metadata))
-        dataset.decoded = (
-          dataset.serialized
-          | 'Decode[{}]'.format(infix)
-          >> self._DecodeInputs(transform_decode_fn))
-      tft_transform_input_metadata = transform_input_dataset_metadata
+      with tft_beam.Context(temp_dir=temp_path):
+        # NOTE: Unclear if there is a difference between input_dataset_metadata
+        # and transform_input_dataset_metadata. Look at Transform executor.
+        decode_fn = tft.coders.ExampleProtoCoder(schema_proto, serialized=True).decode
 
-      data = dataset.decoded
-      (dataset.transformed, metadata) = (
-          ((data, tft_transform_input_metadata), tf_transform_output.transform_raw_features)
-          | 'Transform[{}]'.format(infix) >> tft_beam.TransformDataset())
+        input_analysis_data = {}
+        for dataset in analyze_data_list:
+          infix = 'AnalysisIndex{}'.format(dataset.index)
+          dataset.serialized = (
+            pipeline
+            | 'ReadDataset[{}]'.format(infix) >> self._ReadExamples(
+                dataset, transform_input_dataset_metadata))
+          dataset.decoded = (
+            dataset.serialized
+            | 'Decode[{}]'.format(infix)
+            >> self._DecodeInputs(decode_fn))
+          input_analysis_data[dataset.dataset_key] = dataset.decoded
 
-      dataset.transformed_and_serialized = (
-          dataset.transformed
-          | 'EncodeAndSerialize[{}]'.format(infix)
-          >> beam.ParDo(self._EncodeAsSerializedExamples(), metadata.schema))
+        if not hasattr(tft_beam.analyzer_cache, 'DatasetKey'):
+          input_analysis_data = (
+              [
+                  dataset for dataset in input_analysis_data.values()
+                  if dataset is not None
+              ]
+              | 'FlattenAnalysisDatasetsBecauseItIsRequired' >>
+              beam.Flatten(pipeline=pipeline))
 
-      for dataset in transform_data_list:
-        infix = 'TransformIndex{}'.format(dataset.index)
-        (dataset.transformed_and_serialized
-         | 'Materialize[{}]'.format(infix) >> self._WriteExamples(dataset.materialize_output_path))
+        transform_fn = (
+            (input_analysis_data, transform_input_dataset_metadata)
+            | 'Analyze' >> tft_beam.AnalyzeDataset(
+                tf_transform_output.transform_raw_features, pipeline=pipeline))
+
+        for dataset in transform_data_list:
+          infix = 'TransformIndex{}'.format(dataset.index)
+          dataset.serialized = (
+            pipeline
+            | 'ReadDataset[{}]'.format(infix) >> self._ReadExamples(
+                dataset, transform_input_dataset_metadata))
+
+          dataset.decoded = (
+            dataset.serialized
+            | 'Decode[{}]'.format(infix)
+            >> self._DecodeInputs(decode_fn))
+
+          dataset.transformed, metadata = (
+              ((dataset.decoded, transform_input_dataset_metadata), transform_fn)
+              | 'Transform[{}]'.format(infix) >> tft_beam.TransformDataset())
+
+          dataset.transformed_and_serialized = (
+              dataset.transformed
+              | 'EncodeAndSerialize[{}]'.format(infix)
+              >> beam.ParDo(self._EncodeAsSerializedExamples(), _GetSchemaProto(metadata)))
+
+          _ = (
+            dataset.transformed_and_serialized
+            | 'Materialize[{}]'.format(infix) >> self._WriteExamples(dataset.materialize_output_path))
 
   @staticmethod
   @beam.ptransform_fn

@@ -7,6 +7,7 @@ from typing import Any, Dict, Optional, Text, Union, List, Type
 
 import absl
 import os
+import tensorflow as tf
 
 from tfx import types
 from tfx.components.base import base_component
@@ -24,6 +25,21 @@ from tfx.utils import io_utils
 ARTIFACT_KEY = 'artifact'
 PUSHED_ARTIFACT_KEY = 'pushed_artifact'
 
+def copy_dir(src: Text, dst: Text) -> None:
+  """Copies the whole directory recursively from source to destination."""
+
+  if tf.io.gfile.exists(dst):
+    tf.io.gfile.rmtree(dst)
+  tf.io.gfile.makedirs(dst)
+
+  for dir_name, sub_dirs, leaf_files in tf.io.gfile.walk(src):
+    for leaf_file in leaf_files:
+      leaf_file_path = os.path.join(dir_name, leaf_file)
+      new_file_path = os.path.join(dir_name.replace(src, dst, 1), leaf_file)
+      tf.io.gfile.copy(leaf_file_path, new_file_path)
+
+    for sub_dir in sub_dirs:
+      tf.io.gfile.makedirs(os.path.join(dir_name.replace(src, dst, 1), sub_dir))
 
 class ArtifactPusherExecutor(Executor):
   def Do(self, input_dict: Dict[Text, List[types.Artifact]],
@@ -61,21 +77,16 @@ class ArtifactPusherExecutor(Executor):
     destination_kind = push_destination.WhichOneof('destination')
     if destination_kind == 'filesystem':
       fs_config = push_destination.filesystem
-      serving_path = os.path.join(fs_config.base_directory)
+      serving_path = fs_config.base_directory
 
-      print('-'*40)
-      print(artifact_export.uri)
-      print(fs_config.base_directory)
-      print('-'*40)
-
-      io_utils.copy_dir(artifact_path, os.path.join(serving_path))
+      copy_dir(artifact_path, serving_path)
       absl.logging.info('artifact written to serving path %s.', serving_path)
     else:
       raise NotImplementedError(
           'Invalid push destination {}'.format(destination_kind))
 
     # Copy the artifact to pushing uri for archiving.
-    io_utils.copy_dir(artifact_path, artifact_push.uri)
+    copy_dir(artifact_path, artifact_push.uri)
     absl.logging.info('artifact pushed to %s.', artifact_push.uri)
 
 
