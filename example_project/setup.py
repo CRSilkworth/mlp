@@ -24,7 +24,7 @@ __version__ = globals_dict['__version__']
 setup(
     name='example_project',
     version=__version__,
-    author='__author__',
+    author='',
     author_email='',
     classifiers=[
         'Development Status :: 4 - Beta',
