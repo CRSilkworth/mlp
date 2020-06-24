@@ -60,7 +60,6 @@ pipeline_name = '-'.join([
   _PIPELINE_TYPE
 ])
 pipeline_mod = '.'.join([
-  _MLP_PROJECT,
   _MLP_SUBPROJECT,
   'pipelines',
   _RUNNER,
@@ -112,7 +111,7 @@ ai_platform_training_args = {
   'scaleTier': 'CUSTOM',
   'masterType': 'n1-standard-8',
   'masterConfig': {
-    'imageUri': os.path.join('gcr.io', _GCP_PROJECT, 'tfx-pipeline'),
+    'imageUri': os.path.join('gcr.io', _GCP_PROJECT, _MLP_PROJECT),
     # 'acceleratorConfig': {'count': _NUM_GPUS, 'type': 'NVIDIA_TESLA_K80'}
   },
 }

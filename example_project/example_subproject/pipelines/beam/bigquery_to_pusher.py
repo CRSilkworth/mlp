@@ -59,7 +59,6 @@ pipeline_name = '-'.join([
   _PIPELINE_TYPE
 ])
 pipeline_mod = '.'.join([
-  _MLP_PROJECT,
   _MLP_SUBPROJECT,
   'pipelines',
   _RUNNER,
