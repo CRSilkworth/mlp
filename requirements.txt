@@ -1,7 +1,7 @@
 tfx>=0.21.0,<0.22.0dev
 pandas<1.0.0
 tensorflow==2.1.0
-httplib2<=0.12.0,>=0.8
+httplib2>=0.18.0
 cachetools<4, >=3.1.0
 tensorflow-serving-api<2.2.0
 tf-models-official==0.0.3.dev1
