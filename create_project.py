@@ -20,14 +20,16 @@ flags.mark_flag_as_required('mlp_subproject')
 flags.mark_flag_as_required('gcp_project')
 flags.mark_flag_as_required('gcp_bucket')
 
-
 def replace_strings_in_dir(dir, string_map):
   for dir_name, dirs, files in os.walk(dir):
     for file_name in files:
       file_path = os.path.join(dir_name, file_name)
 
-      with open(file_path) as f:
-        text = f.read()
+      try:
+        with open(file_path) as f:
+          text = f.read()
+      except UnicodeDecodeError:
+        continue
 
       for old_string in string_map:
         text = text.replace(old_string, string_map[old_string])
@@ -37,16 +39,16 @@ def replace_strings_in_dir(dir, string_map):
 
 
 def main(argv: List[Any]):
-  os.path.makedirs(FLAGS.dir, exist_ok=True)
+  os.makedirs(FLAGS.dir, exist_ok=True)
 
   string_map = {
     'gcp_project': FLAGS.gcp_project,
-    'example_project': FLAGS.example_project,
-    'example_subproject': FLAGS.example_subproject
+    'example_project': FLAGS.mlp_project,
+    'example_subproject': FLAGS.mlp_subproject
   }
 
   example_project_dir = os.path.join(os.path.dirname(__file__), 'example_project')
-  example_subproject_dir = os.path.join(os.path.dirname(__file__), 'example_project', 'example_subproject_dir')
+  example_subproject_dir = os.path.join(os.path.dirname(__file__), 'example_project', 'example_subproject')
 
   subproject_dir = os.path.join(FLAGS.dir, FLAGS.mlp_project, FLAGS.mlp_subproject)
 
@@ -64,6 +66,9 @@ def main(argv: List[Any]):
     replace_strings_in_dir(subproject_dir, string_map)
   else:
     shutil.copytree(example_project_dir, project_dir)
+    os.rename(
+      os.path.join(project_dir, 'example_subproject'), subproject_dir
+    )
     replace_strings_in_dir(project_dir, string_map)
 
 if __name__ == "__main__":
