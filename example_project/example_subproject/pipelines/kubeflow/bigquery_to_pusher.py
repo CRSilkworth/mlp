@@ -21,9 +21,9 @@ _RUNNER = 'kubeflow'
 
 # Set to timestamp of previous run if you want to continue old run.
 _RUN_STR = None
-_RUN_DIR = os.path.join('gs://biwako-ml')
+_RUN_DIR = os.path.join('gs://gcp_bucket')
 
-_GCP_PROJECT = 'tripla-data'
+_GCP_PROJECT = 'gcp_project'
 _GCP_REGION = 'us-west1'
 
 _QUERY = """

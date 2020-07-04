@@ -16,7 +16,7 @@ from mlp.utils.dirs import pipeline_dirs
 _MLP_PROJECT = 'example_project'
 _MLP_SUBPROJECT = 'example_subproject'
 
-_GCP_PROJECT = 'tripla-data'
+_GCP_PROJECT = 'gcp_project'
 
 _PIPELINE_TYPE = 'bigquery_to_pusher'
 _RUNNER = 'beam'

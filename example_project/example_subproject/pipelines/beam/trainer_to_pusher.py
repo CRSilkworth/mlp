@@ -15,7 +15,7 @@ from mlp.utils.dir import pipeline_dirs
 
 _PIPELINE_TYPE = 'trainer_to_pusher'
 
-_GCP_PROJECT = 'tripla-data'
+_GCP_PROJECT = 'gcp_project'
 
 _RUN_STR = None
 

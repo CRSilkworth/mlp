@@ -16,7 +16,7 @@ from mlp.utils.dirs import pipeline_dirs
 
 _PIPELINE_TYPE = 'incremental'
 
-_GCP_PROJECT = 'tripla-data'
+_GCP_PROJECT = 'gcp_project'
 
 _RUN_STR = None
 
