@@ -1,7 +1,7 @@
 # mlp
-All the necessary setup to run tfx pipelines using either beam (primarily to run locally for testing) or kubeflow on GCP's ai platform for production. In addition, some custom components, and utilities are made available that lowers the overhead in starting a new pipeline from scratch. The idea being that you set up this repository at the beginning and clone your own pipeline definition into here or use the utilities to start a new one from scratch.
-## Set up
+All the necessary setup to run tfx pipelines using either beam (primarily to run locally for testing) or kubeflow on GCP for production. In addition, some custom components, and utilities are made available that lowers the overhead in starting a new pipeline from scratch. The idea being that you set up this repository at the beginning and clone your own pipeline definition into here or use the utilities to start a new one from scratch.
 
+## Set up
 ### Prerequisites
 * Update system python 3
 ```
@@ -30,56 +30,77 @@ sudo apt-get install python3.6-dev
 docker pull tensorflow/serving:2.0.0
 ```
 
+### Set up GCP Services
+If you plan to use kubeflow on gcp, then you will likely need to enable and set up each of these services individually. If you only want to orchestrate with beam then you may not need to set up most (or possibly any) of these services. It should be noted that the example_project uses BigQuery as a data source however.
+
+* Must have GCP environment setup with all the relevant apis enabled for the GCP project. (only required for kubeflow, or if you plan to run from GCP):
+  * [Storage](https://console.cloud.google.com/compute/instances) - For storing output from the various components.
+  * [BigQuery](https://console.cloud.google.com/apis/api/bigquery.googleapis.com/overview) - If that's where your raw data is being stored.
+  * [Kubeflow](https://www.kubeflow.org/docs/) - There are many ways to set up kubeflow. It can be quite difficult to set up as the documentation is still very much in flux.
+    * [AI platform](https://console.cloud.google.com/ai-platform/pipelines) - Using the kubeflow deployed by AI platform is by far the easiest setup, however they were still working out a lot of the bugs at the time of this writing.
+    * [Kubeflow on GCP](https://www.kubeflow.org/docs/gke/deploy/) - This is method that is currently being used in this documentation (v1.0).
+  * [Dataflow](https://console.cloud.google.com/dataflow) - If using a dataflow runner. This allows the upstream components (like ExampleGen and Transform) automatically scale the number of workers. Recommended if you dealing with a lot of data.
+  * [GPU quota](https://console.cloud.google.com/iam-admin/quotas) - Must ask for whatever number of GPUs you need to use in your corresponding region.
+
 ### Install for Beam
+Beam is the simpler orchestration method. It runs directly from the local machine, and although it uses tensorflow gpu it is probably more useful as for end to end testing of the whole pipeline rather than something to use in production.
+
 * Checkout the mlp repository and build the mlp/beam docker imagine.
 ```
-git clone --branch v{version} git+ssh://git@github.com/CRSilkworth/mlp.git
+git clone --branch v<version> git+ssh://git@github.com/CRSilkworth/mlp.git
 cd mlp
-build . -f Dockerfile.beam -t mlp/beam:latest
-cd {mlp_project}
-build . -f Dockerfile.beam -t {mlp_project}/beam:latest
+docker build . -f Dockerfile.beam -t mlp/beam:latest
 ```
 * Note: the example project assumes data will be pulled directly from BigQuery which is not possible without a GCP project setup.
 
 ### Install for kubeflow
-* Must have GCP environment setup with all the relevant apis enabled for the GCP project. (only required for kubeflow, or if you plan to run from GCP):
-  * [Storage](https://console.cloud.google.com/compute/instances)
-  * [BigQuery](https://console.cloud.google.com/apis/api/bigquery.googleapis.com/overview) - If that's where your raw data is being stored.
-  * [AI platform](https://console.cloud.google.com/ai-platform/pipelines) - If using kubeflow
-  * [Dataflow](https://console.cloud.google.com/dataflow) - If using a dataflow runner (recommended)
-  * [Kubeflow pipelines](https://console.cloud.google.com/marketplace/details/google-cloud-ai-platform/kubeflow-pipelines?project=booming-cosine-217602) -may not need to explicitly set this up since it might be handled by ai platform
-  * [GPU quota](https://console.cloud.google.com/iam-admin/quotas) - Must ask for whatever number of GPUs you need to use in your corresponding region.
+Kubeflow is the more production ready orchestration method. It is an ML specialized kubernetes deployment that can handle scaling relatively easily, although it is really quite challenging to set up. Make sure you set up the GCP services described above.
 
-* Get gcp credentials from [here](https://console.cloud.google.com/apis/credentials), and store the downloaded json file somewhere safe. Point the GOOGLE_APPLICATION_CREDENTIALS towards that file. You'll have to do this every time you open a new terminal:
+* Checkout the mlp repo.
 ```
-export GOOGLE_APPLICATION_CREDENTIALS=path/to/secrets/{gcp_project}-{key_id}.json
-```
-
-* Checkout the ml pipelines repo.
-```
-git clone --branch v{version} git+ssh://git@github.com/CRSilkworth/mlp.git
+git clone --branch v<version> git+ssh://git@github.com/CRSilkworth/mlp.git
 cd mlp
 export PYTHONPATH=$PYTHONPATH:$PWD
 ```
 
 * Build the base docker image
 ```
-docker build . -f Dockerfile.gpu -t gcr.io/mlp/base:latest
+docker build . -f Dockerfile.kubeflow -t mlp/base:latest
 ```
 
 ## Running a pipeline
 ### Using beam
-* Ensure that the environmental variables from the installation section are set.
-* Create or edit a beam pipeline file from the pipelines directory ({mlp_subproject}/pipelines/beam/). Adjust any of the input variables, i.e. the variables uppercased beginning with an underscore (e.g. \_NUM_TRAIN_STEPS) and run:
+* Ensure that the environmental variables from the installation section are set. If you used create_project.py and filled in all the relevant information when running, these variables should be located in an file called set_env.sh:
 ```
+cd <mlp_project>
+source set_env.sh
+```
+
+* Create or edit a beam pipeline file from the pipelines directory (<mlp_subproject>/pipelines/beam/). Adjust any of the input variables, i.e. the variables uppercased beginning with an underscore (e.g. \_NUM_TRAIN_STEPS) and run:
+```
+docker run --gpus all -it \
+  -v $(PWD):/tmp \
+  -w /tmp --rm \
+  -v ~/runs/:/root/runs/ \
+  -v $(GOOGLE_APPLICATION_CREDENTIALS):<some_path_to_credentials_file> \
+  -e GOOGLE_APPLICATION_CREDENTIALS=<some_path_to_credentials_file> \
+  <mlp_project>/beam:latest \
+  python <mlp_subproject>/pipelines/beam/<pipeline_file>
+
 docker run --gpus all -it -v $PWD:/tmp -w /tmp --rm \
-  path_nn/beam:latest \
-  python {mlp_subproject}/pipelines/beam/{pipeline_file}
+  <mlp_project>/beam:latest \
+  python <mlp_subproject>/pipelines/beam/<pipeline_file>
 ```
-Outputs will be written to a directory path_nn/runs/ by default.
+Outputs will be written to a directory <mlp_project>/runs/ by default.
 
 ### Using kubeflow
-* Ensure that the environmental variables from the installation section are set. Also, make sure you have successfully built the Docker.kubeflow image from above. Running:
+* Ensure that the environmental variables from the installation section are set. If you used create_project.py and filled in all the relevant information when running, these variables should be located in an file called set_env.sh:
+```
+cd <mlp_project>
+source set_env.sh
+```
+
+* Make sure you have successfully built the Docker.kubeflow image from above. Running:
 ```
 docker images
 ```
@@ -87,35 +108,34 @@ should show an image with the REPOSITORY = 'gcr.io/mlp/base:latest'.
 
 * cd to the base mlp directory, _you must run it from here!_
 ```
-cd {mlp_project}
+cd <mlp_project>
 ```
 
-* Create or edit a beam pipeline file from the pipelines directory of the project/subproject you want to run (e.g. mlp/example_project/example_subproject/pipelines/beam/bigquery_to_pusher.py). Adjust any of the input variables, i.e. the variables uppercased beginning with an underscore (e.g. \_NUM_TRAIN_STEPS), or the ai_platform args if you want to change the VMs that the training process is being run on. Create the pipeline using the built in tfx tool:
+* Create or edit a kubeflow pipeline file from the pipelines directory of the project/subproject you want to run (e.g. mlp/example_project/example_subproject/pipelines/kubeflow/bigquery_to_pusher.py). Adjust any of the input variables, i.e. the variables uppercased beginning with an underscore (e.g. \_NUM_TRAIN_STEPS), or the ai_platform args if you want to change the VMs that the training process is being run on. Create the pipeline using the built in tfx tool:
 ```
-tfx pipeline create  --endpoint {ai_platform_pipeline_endpoint} --build_target_image gcr.io/mlp/{mlp_project} --pipeline_path {mlp_subproject}/pipelines/{pipeline_file_name}
+tfx pipeline create  --endpoint $ENDPOINT --build_target_image gcr.io/$PROJECT/<mlp_project> --pipeline_path <mlp_subproject>/pipelines/<pipeline_file_name>
 ```
-Where the endpoint can be taken from the [AI platform page](https://console.cloud.google.com/ai-platform/pipelines/clusters) (after enabling the api and setting up a kubeflow cluster, etc.) by clicking on the open pipelines dashboard and taking the url of the form: {hash_string}-dot-{region}.pipelines.googleusercontent.com. This creation takes a while, 30min~1 hour.
 
 * Start a run:
 ```
-tfx run create --pipeline_name {mlp_project}-{mlp_subproject}-{pipeline_type} --endpoint  {ai_platform_pipeline_endpoint}
+tfx run create --pipeline_name <mlp_project>-<mlp_subproject>-<pipeline_type> --endpoint  <ai_platform_pipeline_endpoint>
 ```
 You can get the pipeline name either from the python file used to create the pipeline or from the pipelines dashboard.
 
 * To update an existing pipeline:
 ```
-tfx pipeline update  --endpoint {ai_platform_pipeline_endpoint} --pipeline_path {mlp_subproject}/pipelines/kubeflow/{pipeline_file_name}
+tfx pipeline update  --endpoint $ENDPOINT --pipeline_path <mlp_subproject>/pipelines/kubeflow/<pipeline_file_name>
 ```
 
 * To delete an existing pipeline:
 ```
-tfx pipeline delete --pipeline_name {mlp_project}-{mlp_subproject}-{pipeline_type} --endpoint  {ai_platform_pipeline_endpoint}
+tfx pipeline delete --pipeline_name <mlp_project>-<mlp_subproject>-<pipeline_type> --endpoint  <ai_platform_pipeline_endpoint>
 ```
 ## Create project skeleton
 * A simple script is provided to give you a the skeleton of a project in order to make the process of starting a project from scratch less tedious. The script is fairly straightforward. Follow the instructions for a beam install then:
 ```
 cd mlp
 docker run --gpus all -it -v $PWD:/tmp -w /tmp --rm \
-  path_nn/beam:latest \
+  <mlp_project>/beam:latest \
   python create_project.py --help
 ```
