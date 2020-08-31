@@ -26,31 +26,25 @@ _NUM_OLD = 5000
 _QUERY = """
   (
   SELECT
-    example_id,
-    language,
-    country,
-    hotel_id,
-    business_type,
-    intent_code,
-    request
-  FROM ml_example.translated_request_response
-  WHERE request IS NOT NULL
-    AND intent_code IS NOT NULL
-    AND DATETIME(created_at) > DATETIME_ADD(CURRENT_DATETIME(), INTERVAL {} {})
+    item_description,
+    MAX(vendor_name) AS vendor,
+    MAX(bottle_volume_ml) AS max_bottle_volume,
+    MAX(category_name) AS category
+  FROM `bigquery-public-data.iowa_liquor_sales.sales`
+  GROUP BY item_description
+  WHERE DATETIME(created_at) > DATETIME_ADD(CURRENT_DATETIME(), INTERVAL {} {})
+
 )
 UNION DISTINCT
 (
   SELECT
-    example_id,
-    language,
-    country,
-    hotel_id,
-    business_type,
-    intent_code,
-    request
-  FROM ml_example.translated_request_response
-  WHERE request IS NOT NULL
-    AND intent_code IS NOT NULL
+    item_description,
+    MAX(vendor_name) AS vendor,
+    MAX(bottle_volume_ml) AS max_bottle_volume,
+    MAX(category_name) AS category
+  FROM `bigquery-public-data.iowa_liquor_sales.sales`
+  GROUP BY item_description
+  ORDER BY RAND()
   LIMIT {}
  )
 """.format(_FREQ_NUM, _FREQ, _NUM_OLD)
@@ -72,7 +66,6 @@ pipeline_name = '-'.join([
   _PIPELINE_TYPE
 ])
 pipeline_mod = '.'.join([
-  full._MLP_PROJECT,
   full._MLP_SUBPROJECT,
   'pipelines',
   full._RUNNER,

@@ -40,7 +40,7 @@
 
 # Sensitive Info #
 ##################
-startup.sh
+set_env.sh
 
 **/runs/**
 # Temp scripts #

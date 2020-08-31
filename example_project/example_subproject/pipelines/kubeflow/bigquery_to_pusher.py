@@ -12,6 +12,7 @@ from tfx.orchestration.kubeflow import kubeflow_dag_runner
 from example_subproject import preprocess
 from example_subproject import train
 from mlp.utils.dirs import pipeline_dirs
+from mlp.kubeflow.pipeline_ops import set_gpu_limit
 
 _MLP_PROJECT = 'example_project'
 _MLP_SUBPROJECT = 'example_subproject'
@@ -24,7 +25,7 @@ _RUN_STR = None
 _RUN_DIR = os.path.join('gs://gcp_bucket')
 
 _GCP_PROJECT = 'gcp_project'
-_GCP_REGION = 'us-west1'
+_GCP_REGION = 'gcp_region'
 
 _QUERY = """
   SELECT
@@ -95,27 +96,16 @@ preprocessing_fn = preprocess.preprocess_factory(
 
 # If running with dataflow
 beam_pipeline_args = [
-  '--runner=DataflowRunner',
+  # If you want to use DataFlow, ensure that the service account
+  # <kf-deployment-name>-user@<gcp_project>.iam.gserviceaccount.com has the
+  # ServiceAccount/ServiceAccountUser role.
+  # '--runner=DataflowRunner',
   '--experiments=shuffle_mode=auto',
   '--project=' + _GCP_PROJECT,
   '--temp_location=' + os.path.join(_RUN_DIR, 'tmp'),
   '--region=' + _GCP_REGION,
   '--disk_size_gb=50',
 ]
-#######################
-# NOTE: PUT BACK GPUS
-# If using GCP's AI Platform.
-ai_platform_training_args = {
-  'project': _GCP_PROJECT,
-  'region': _GCP_REGION,
-  'scaleTier': 'CUSTOM',
-  'masterType': 'n1-standard-8',
-  'masterConfig': {
-    'imageUri': os.path.join('gcr.io', _GCP_PROJECT, _MLP_PROJECT),
-    # 'acceleratorConfig': {'count': _NUM_GPUS, 'type': 'NVIDIA_TESLA_K80'}
-  },
-}
-#######################
 
 if __name__ == "__main__":
   runner_config = kubeflow_dag_runner.KubeflowDagRunnerConfig(
@@ -135,6 +125,5 @@ if __name__ == "__main__":
       num_train_steps=_NUM_TRAIN_STEPS,
       num_eval_steps=_NUM_EVAL_STEPS,
       beam_pipeline_args=beam_pipeline_args,
-      ai_platform_training_args=ai_platform_training_args
       )
   )
