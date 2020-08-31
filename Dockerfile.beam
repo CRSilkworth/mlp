@@ -6,4 +6,6 @@ COPY version.py ./
 COPY setup.py ./
 COPY proto_gen.py ./
 COPY README.md ./
+RUN apt-get update
+RUN apt-get install python3-pip -y
 RUN python3 -m pip install .
