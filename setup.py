@@ -32,12 +32,6 @@ __version__ = globals_dict['__version__']
 with open('README.md') as fp:
   _LONG_DESCRIPTION = fp.read().format(version=__version__)
 
-# package_dir = {
-#   'mlp.' + p: p for p in find_packages()
-# }
-# packages = ['mlp.' + p for p in find_packages()]
-# print(package_dir)
-# print(packages)
 setup(
     name='mlp',
     version=__version__,
@@ -61,7 +55,6 @@ setup(
     namespace_packages=[],
     install_requires=_make_required_install_packages(),
     python_requires='>2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,<4',
-    # package_dir=package_dir,
     packages=['mlp.' + p for p in find_packages(where='./mlp')],
     include_package_data=True,
     description='End to end machine learning pipelines for automated data preprocessing, anomaly detection, training and deployment.',

@@ -1,10 +1,11 @@
 tfx>=0.21.0,<0.22.0dev
+tensorflow==2.1.1
 pandas<1.0.0
 httplib2>=0.18.0
 cachetools<4, >=3.1.0
+tensorflow-text==2.1.1
 tensorflow-serving-api<2.2.0
 tf-models-official==0.0.3.dev1
-tensorflow-text>=2.1.0, <2.2.0
 kubernetes<10.1.0
 requests>=2.23.0
 google-resumable-media==0.4.1
