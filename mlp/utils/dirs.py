@@ -8,7 +8,7 @@ def pipeline_dirs(run_dir, run_str, mlp_project, mlp_subproject, pipeline_name):
   if run_str is not None:
     run_root = os.path.join(proj_root, run_str)
   else:
-    run_str = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+    run_str = datetime.datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S')
     run_root = os.path.join(proj_root, run_str)
 
   model_uri = os.path.join(run_dir, 'serving', mlp_project, mlp_subproject, 'model')
