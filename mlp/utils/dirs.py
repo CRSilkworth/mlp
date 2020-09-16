@@ -11,9 +11,7 @@ def pipeline_dirs(run_dir, run_str, mlp_project, mlp_subproject, pipeline_name):
     run_str = datetime.datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S')
     run_root = os.path.join(proj_root, run_str)
 
-  model_uri = os.path.join(run_dir, 'serving', mlp_project, mlp_subproject, 'model')
-  schema_uri = os.path.join(run_dir, 'serving', mlp_project, mlp_subproject, 'schema')
-  transform_graph_uri = os.path.join(run_dir, 'serving', mlp_project, mlp_subproject, 'transform_graph')
+  serving_uri = os.path.join(run_root, 'serving')
   pipeline_root = os.path.join(run_root, 'data')
 
-  return pipeline_root, model_uri, schema_uri, transform_graph_uri
+  return proj_root, run_root, pipeline_root, serving_uri
