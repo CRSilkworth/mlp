@@ -27,9 +27,9 @@ export CLIENT_SECRET='iap_client_secret'
 # Or if just using kubeflow on gcp without AI Platform it would be like
 # https://kf_deployment_name.endpoints.tripla-data.cloud.goog/pipeline
 export ENDPOINT="kubeflow_endpoint"
+export NAMESPACE="kubeflow"
 
-
-MLP_PROJECT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+export MLP_PROJECT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 export PYTHONPATH=$PYTHONPATH:$MLP_PROJECT_DIR
 
