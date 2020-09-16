@@ -22,6 +22,12 @@ sudo apt-get install python3.6-dev
 
 * docker must be installed( [mac](https://docs.docker.com/docker-for-mac/install/), [ubuntu](https://docs.docker.com/install/linux/docker-ce/ubuntu/))
 
+* If using kubeflow, install skaffold:
+```
+curl -Lo skaffold https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64 && \
+sudo install skaffold /usr/local/bin/
+```
+
 * Ensure that your machine is able to access the mlp github repo via ssh. [follow these instructions](https://help.github.com/articles/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent/)
 
 ### Inference only install
@@ -36,11 +42,40 @@ If you plan to use kubeflow on gcp, then you will likely need to enable and set 
 * Must have GCP environment setup with all the relevant apis enabled for the GCP project. (only required for kubeflow, or if you plan to run from GCP):
   * [Storage](https://console.cloud.google.com/compute/instances) - For storing output from the various components.
   * [BigQuery](https://console.cloud.google.com/apis/api/bigquery.googleapis.com/overview) - If that's where your raw data is being stored.
+  * [OAuth 2.0 Client](https://console.cloud.google.com/apis/credentials) - necessary to create one if you're setting up a kubeflow deployment.
   * [Kubeflow](https://www.kubeflow.org/docs/) - There are many ways to set up kubeflow. It can be quite difficult to set up as the documentation is still very much in flux.
     * [AI platform](https://console.cloud.google.com/ai-platform/pipelines) - Using the kubeflow deployed by AI platform is by far the easiest setup, however they were still working out a lot of the bugs at the time of this writing.
     * [Kubeflow on GCP](https://www.kubeflow.org/docs/gke/deploy/) - This is method that is currently being used in this documentation (v1.0).
   * [Dataflow](https://console.cloud.google.com/dataflow) - If using a dataflow runner. This allows the upstream components (like ExampleGen and Transform) automatically scale the number of workers. Recommended if you dealing with a lot of data.
   * [GPU quota](https://console.cloud.google.com/iam-admin/quotas) - Must ask for whatever number of GPUs you need to use in your corresponding region.
+
+* To deploy a kubeflow cluster to GCP you can use the script located in mlp/kubeflow_deploy/setup.sh.
+  * First install [kfctl](https://github.com/kubeflow/kfctl/releases/tag/v1.0.2) and [gcloud](https://cloud.google.com/sdk/docs/downloads-apt-get)
+  ```
+  curl -L https://github.com/kubeflow/kfctl/releases/download/v1.0.2/kfctl_v1.0.2-0-ga476281_linux.tar.gz
+  tar -xvf kfctl_v1.0.2_<platform>.tar.gz
+  sudo cp ./kfctl /usr/local/bin/
+
+  echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+  sudo apt-get install apt-transport-https ca-certificates gnupg
+  curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
+  sudo apt-get update && sudo apt-get install google-cloud-sdk
+
+  gcloud init
+  gcloud auth login
+  gcloud auth application-default login
+  ```
+  * Replace all variable of the form <var_name> with their relevant values.
+  * Set your oauth client secrete associated with the oauth client id:
+  ```
+  export CLIENT_SECRET='<secret>'
+  ```
+  * Open up the setup.sh file and replace all the variables of the form '<var_name>' with the corresponding values.
+  * Run setup script
+  ```
+  cd kubeflow_deploy
+  source setup.sh
+  ```
 
 ### Install for Beam
 Beam is the simpler orchestration method. It runs directly from the local machine, and although it uses tensorflow gpu it is probably more useful as for end to end testing of the whole pipeline rather than something to use in production.
@@ -59,6 +94,7 @@ Kubeflow is the more production ready orchestration method. It is an ML speciali
 * Checkout the mlp repo.
 ```
 git clone --branch v<version> git+ssh://git@github.com/CRSilkworth/mlp.git
+
 cd mlp
 export PYTHONPATH=$PYTHONPATH:$PWD
 ```
@@ -113,7 +149,7 @@ cd <mlp_project>
 
 * Create or edit a kubeflow pipeline file from the pipelines directory of the project/subproject you want to run (e.g. mlp/example_project/example_subproject/pipelines/kubeflow/bigquery_to_pusher.py). Adjust any of the input variables, i.e. the variables uppercased beginning with an underscore (e.g. \_NUM_TRAIN_STEPS), or the ai_platform args if you want to change the VMs that the training process is being run on. Create the pipeline using the built in tfx tool:
 ```
-tfx pipeline create  --endpoint $ENDPOINT --build_target_image gcr.io/$PROJECT/<mlp_project> --pipeline_path <mlp_subproject>/pipelines/<pipeline_file_name>
+tfx pipeline create  --endpoint $ENDPOINT --iap_client_id $CLIENT_ID --build_target_image gcr.io/$PROJECT/<mlp_project> --pipeline_path <mlp_subproject>/pipelines/<pipeline_file_name>
 ```
 
 * Start a run:
