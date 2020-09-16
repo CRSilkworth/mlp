@@ -1,6 +1,7 @@
 import tensorflow as tf
 import datetime
 import os
+import glob
 
 
 class _TrainingPipelinePath(object):
@@ -9,12 +10,9 @@ class _TrainingPipelinePath(object):
     self.full_path = full_path
     self.start_ts = self._maybe_convert_to_ts(full_path.split('/')[start_index])
     self.end_ts = self._maybe_convert_to_ts(full_path.split('/')[end_index])
-    self.uri = '/'.join(full_path.split('/')[:-5])
+    self.uri = '/'.join(full_path.rstrip('/').split('/')[:-5])
 
   def _maybe_convert_to_ts(self, str_datetime):
-    # print('-'*20)
-    # print(self.full_path)
-    # print(str_datetime)
     try:
       return int(str_datetime)
     except ValueError:
@@ -28,7 +26,10 @@ def multi_pipeline_uri(base_full_dir, base_incremental_dir, mid_path='data/Alway
   end_index = start_index + len(mid_path.lstrip('/').split('/')) + 1
 
   full_pattern = os.path.join(base_full_dir, '*', mid_path, '*/')
-  full_dirs = tf.io.gfile.glob(full_pattern)
+  if full_pattern.startswith('gs://'):
+    full_dirs = tf.io.gfile.glob(full_pattern)
+  else:
+    full_dirs = glob.glob(full_pattern)
 
   full_tpps = [
     _TrainingPipelinePath(f_dir, start_index, end_index) for f_dir in full_dirs
@@ -38,7 +39,11 @@ def multi_pipeline_uri(base_full_dir, base_incremental_dir, mid_path='data/Alway
     last_full = max(full_tpps, key=lambda x: x.start_ts)
 
   incremental_pattern = os.path.join(base_incremental_dir, '*', mid_path, '*/')
-  incremental_dirs = tf.io.gfile.glob(incremental_pattern)
+
+  if incremental_pattern.startswith('gs://'):
+    incremental_dirs = tf.io.gfile.glob(incremental_pattern)
+  else:
+    incremental_dirs = glob.glob(incremental_pattern)
 
   incremental_tpps = [
     _TrainingPipelinePath(f_dir, start_index, end_index) for f_dir in incremental_dirs
@@ -64,3 +69,30 @@ def multi_pipeline_uri(base_full_dir, base_incremental_dir, mid_path='data/Alway
     return last_incremental.uri
 
   return last_full.uri
+
+
+def latest_artifact_path(pipeline_uri, artifact_path='data/AlwaysPusher/pushed_model'):
+  uri = os.path.join(pipeline_uri, artifact_path, '*')
+  if uri.startswith('gs://'):
+    uris = tf.io.gfile.glob(uri)
+  else:
+    uris = glob.glob(uri)
+
+  max_num = None
+  latest_uri = None
+  for uri in uris:
+    num = int(uri.rstrip('/').split('/')[-1])
+
+    if max_num is None or max_num < num:
+      max_num = num
+      latest_uri = uri
+
+  return latest_uri
+
+
+def latest_incremental_artifacts(pipeline_uri):
+  schema_uri = latest_artifact_path(pipeline_uri, artifact_path='serving/schema')
+  transform_graph_uri = latest_artifact_path(pipeline_uri, artifact_path='serving/transform_graph')
+  model_uri = latest_artifact_path(pipeline_uri, artifact_path='serving/model')
+
+  return schema_uri, transform_graph_uri, model_uri
