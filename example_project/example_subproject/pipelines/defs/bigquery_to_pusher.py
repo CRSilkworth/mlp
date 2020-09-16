@@ -27,15 +27,15 @@ from tfx.proto import pusher_pb2
 
 from tfx.extensions.google_cloud_ai_platform.trainer import executor as ai_platform_trainer_executor
 
+import os
+
 
 def create_pipeline(
   pipeline_name: Text,
   pipeline_root: Text,
   pipeline_mod: Text,
-  schema_uri: Text,
-  transform_graph_uri: Text,
-  model_uri: Text,
   query: Text,
+  serving_uri: Text,
   num_train_steps: int,
   num_eval_steps: int,
   beam_pipeline_args: Optional[List[Text]] = None,
@@ -105,7 +105,7 @@ def create_pipeline(
       model=trainer.outputs['model'],
       push_destination=pusher_pb2.PushDestination(
         filesystem=pusher_pb2.PushDestination.Filesystem(
-          base_directory=model_uri
+          base_directory=os.path.join(serving_uri, 'model')
         )
       ),
   )
@@ -116,7 +116,7 @@ def create_pipeline(
       artifact=infer_schema.outputs['schema'],
       push_destination=pusher_pb2.PushDestination(
         filesystem=pusher_pb2.PushDestination.Filesystem(
-          base_directory=schema_uri
+          base_directory=os.path.join(serving_uri, 'schema')
         )
       ),
       instance_name='schema_pusher'
@@ -126,7 +126,7 @@ def create_pipeline(
       artifact=transform.outputs['transform_graph'],
       push_destination=pusher_pb2.PushDestination(
         filesystem=pusher_pb2.PushDestination.Filesystem(
-          base_directory=transform_graph_uri
+          base_directory=os.path.join(serving_uri, 'transform_graph')
         )
       ),
       instance_name='transform_graph_pusher'

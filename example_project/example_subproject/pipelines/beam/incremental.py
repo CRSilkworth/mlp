@@ -13,6 +13,7 @@ from example_subproject import preprocess
 from example_subproject import train
 import example_subproject.pipelines.beam.bigquery_to_pusher as full
 from mlp.utils.dirs import pipeline_dirs
+from mlp.utils.resolvers import multi_pipeline_uri
 
 _PIPELINE_TYPE = 'incremental'
 
@@ -73,13 +74,15 @@ pipeline_mod = '.'.join([
 ])
 proj_root = os.path.join(full._RUN_DIR, 'tfx', pipeline_name)
 
-pipeline_root, _, __, ___ = pipeline_dirs(
+proj_root, run_root, pipeline_root, serving_uri = pipeline_dirs(
   full._RUN_DIR,
   _RUN_STR,
   full._MLP_PROJECT,
   full._MLP_SUBPROJECT,
   pipeline_name
 )
+
+latest_pipeline_uri = multi_pipeline_uri(full.proj_root, proj_root)
 
 trainer_fn = train.trainer_factory(
   batch_size=full._BATCH_SIZE,
@@ -111,9 +114,8 @@ if __name__ == "__main__":
       pipeline_name=pipeline_name,
       pipeline_root=pipeline_root,
       pipeline_mod=pipeline_mod,
-      schema_uri=full.schema_uri,
-      transform_graph_uri=full.transform_graph_uri,
-      model_uri=full.model_uri,
+      serving_uri=serving_uri,
+      latest_pipeline_uri=latest_pipeline_uri,
       query=_QUERY,
       num_train_steps=_NUM_TRAIN_STEPS,
       num_eval_steps=_NUM_EVAL_STEPS,

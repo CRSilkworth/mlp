@@ -15,6 +15,8 @@ from tfx.components import Trainer
 from tfx.components import BigQueryExampleGen
 from tfx.components.base import executor_spec
 from mlp.components.always_pusher import AlwaysPusher
+from mlp.components.artifact_pusher import SchemaPusher
+from mlp.components.artifact_pusher import TransformGraphPusher
 
 from tfx.proto import trainer_pb2
 from tfx.proto import example_gen_pb2
@@ -23,15 +25,16 @@ from tfx.types import standard_artifacts
 
 from tfx.extensions.google_cloud_ai_platform.trainer import executor as ai_platform_trainer_executor
 
+import os
+
 
 def create_pipeline(
   pipeline_name: Text,
   pipeline_root: Text,
   pipeline_mod: Text,
-  schema_uri: Text,
-  transform_graph_uri: Text,
-  model_uri: Text,
   query: Text,
+  latest_pipeline_uri: Text,
+  serving_uri: Text,
   num_train_steps: int,
   num_eval_steps: int,
   beam_pipeline_args: Optional[List[Text]] = None,
@@ -51,21 +54,21 @@ def create_pipeline(
     )
   )
 
-  importer = ImporterNode(
+  schema_importer = ImporterNode(
     instance_name='import_schema',
-    source_uri=schema_uri,
+    source_uri=os.path.join(latest_pipeline_uri, 'serving/schema'),
     artifact_type=standard_artifacts.Schema,
     reimport=False
   )
   graph_importer = ImporterNode(
     instance_name='import_transform_graph',
-    source_uri=transform_graph_uri,
+    source_uri=os.path.join(latest_pipeline_uri, 'serving/transform_graph'),
     artifact_type=standard_artifacts.TransformGraph,
     reimport=False
   )
   model_importer = ImporterNode(
     instance_name='import_model',
-    source_uri=model_uri,
+    source_uri=os.path.join(latest_pipeline_uri, 'serving/model'),
     artifact_type=standard_artifacts.Model,
     reimport=False
   )
@@ -73,7 +76,7 @@ def create_pipeline(
   # Performs transformations and feature engineering in training and serving.
   transform = TransformWithGraph(
       examples=example_gen.outputs['examples'],
-      schema=importer.outputs['result'],
+      schema=schema_importer.outputs['result'],
       transform_graph=graph_importer.outputs['result']
   )
 
@@ -91,7 +94,7 @@ def create_pipeline(
   # Uses user-provided Python function that implements a model using TF-Learn.
   trainer = Trainer(
     transformed_examples=transform.outputs['transformed_examples'],
-    schema=importer.outputs['result'],
+    schema=schema_importer.outputs['result'],
     transform_graph=graph_importer.outputs['result'],
     train_args=trainer_pb2.TrainArgs(num_steps=num_train_steps),
     eval_args=trainer_pb2.EvalArgs(num_steps=num_eval_steps),
@@ -105,9 +108,29 @@ def create_pipeline(
     model=trainer.outputs['model'],
     push_destination=pusher_pb2.PushDestination(
       filesystem=pusher_pb2.PushDestination.Filesystem(
-        base_directory=model_uri
+        base_directory=os.path.join(serving_uri, 'model')
       )
     )
+  )
+
+  schema_pusher = SchemaPusher(
+      artifact=schema_importer.outputs['result'],
+      push_destination=pusher_pb2.PushDestination(
+        filesystem=pusher_pb2.PushDestination.Filesystem(
+          base_directory=os.path.join(serving_uri, 'schema')
+        )
+      ),
+      instance_name='schema_pusher'
+  )
+
+  transform_graph_pusher = TransformGraphPusher(
+      artifact=graph_importer.outputs['result'],
+      push_destination=pusher_pb2.PushDestination(
+        filesystem=pusher_pb2.PushDestination.Filesystem(
+          base_directory=os.path.join(serving_uri, 'transform_graph')
+        )
+      ),
+      instance_name='transform_graph_pusher'
   )
 
   pipeline_kwargs = {}
@@ -122,12 +145,14 @@ def create_pipeline(
     pipeline_root=pipeline_root,
     components=[
       example_gen,
-      importer,
+      schema_importer,
       graph_importer,
       model_importer,
       transform,
       trainer,
-      pusher
+      pusher,
+      schema_pusher,
+      transform_graph_pusher
     ],
     enable_cache=True,
     beam_pipeline_args=beam_pipeline_args,

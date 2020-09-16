@@ -66,7 +66,7 @@ pipeline_mod = '.'.join([
   _RUNNER,
   _PIPELINE_TYPE
 ])
-pipeline_root, model_uri, schema_uri, transform_graph_uri = pipeline_dirs(
+proj_root, run_root, pipeline_root, serving_uri = pipeline_dirs(
   _RUN_DIR,
   _RUN_STR,
   _MLP_PROJECT,
@@ -106,10 +106,15 @@ beam_pipeline_args = [
   '--region=' + _GCP_REGION,
   '--disk_size_gb=50',
 ]
+pipeline_op_funcs = kubeflow_dag_runner.get_default_pipeline_operator_funcs()
+
+if _NUM_GPUS:
+  pipeline_op_funcs.append(set_gpu_limit(_NUM_GPUS))
 
 if __name__ == "__main__":
   runner_config = kubeflow_dag_runner.KubeflowDagRunnerConfig(
     kubeflow_metadata_config=kubeflow_dag_runner.get_default_kubeflow_metadata_config(),
+    pipeline_operator_funcs=pipeline_op_funcs,
     tfx_image=os.environ.get('KUBEFLOW_TFX_IMAGE', None)
   )
 
@@ -119,9 +124,7 @@ if __name__ == "__main__":
       pipeline_root=pipeline_root,
       pipeline_mod=pipeline_mod,
       query=_QUERY,
-      model_uri=model_uri,
-      schema_uri=schema_uri,
-      transform_graph_uri=transform_graph_uri,
+      serving_uri=serving_uri,
       num_train_steps=_NUM_TRAIN_STEPS,
       num_eval_steps=_NUM_EVAL_STEPS,
       beam_pipeline_args=beam_pipeline_args,

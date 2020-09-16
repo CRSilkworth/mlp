@@ -12,6 +12,7 @@ from example_subproject import preprocess
 from example_subproject import train
 import example_subproject.pipelines.kubflow.bigquery_to_pusher as full
 from mlp.utils.dir import pipeline_dirs
+from mlp.utils.resolvers import multi_pipeline_uri
 
 _PIPELINE_TYPE = 'incremental'
 _RUN_STR = None
@@ -59,8 +60,6 @@ any_pipeline = '-'.join([
   full._MLP_SUBPROJECT,
   '*'
 ])
-# _WARM_START_FROM = os.path.join(full._RUN_DIR, 'tfx', any_pipeline, '*/data/Trainer/model/*/serving_model_dir/checkpoint')
-# _ASSET_DIR = os.path.join(full._RUN_DIR, 'tfx', any_pipeline, '*/data/Transform/transform_graph/*/transform_fn/assets/')
 
 pipeline_name = '-'.join([
   full._MLP_PROJECT,
@@ -74,13 +73,15 @@ pipeline_mod = '.'.join([
   _PIPELINE_TYPE
 ])
 
-pipeline_root, _, __, ___ = pipeline_dirs(
+proj_root, run_root, pipeline_root, serving_uri = pipeline_dirs(
   full._RUN_DIR,
   _RUN_STR,
   full._MLP_PROJECT,
   full._MLP_SUBPROJECT,
   pipeline_name
 )
+
+latest_pipeline_uri = multi_pipeline_uri(full.proj_root, proj_root)
 
 trainer_fn = train.trainer_factory(
   batch_size=full._BATCH_SIZE,
@@ -117,9 +118,8 @@ if __name__ == "__main__":
       pipeline_root=pipeline_root,
       pipeline_mod=pipeline_mod,
       query=_QUERY,
-      schema_uri=full.schema_uri,
-      transform_graph_uri=full.transform_graph_uri,
-      model_uri=full.model_uri,
+      serving_uri=serving_uri,
+      latest_pipeline_uri=latest_pipeline_uri,
       num_train_steps=_NUM_TRAIN_STEPS,
       num_eval_steps=_NUM_EVAL_STEPS,
       beam_pipeline_args=beam_pipeline_args,
