@@ -10,7 +10,7 @@
 
 # Environment #
 ###############
-venv*
+*venv*
 **/airflow.cfg
 airflow/*.cfg
 airflow/*.orig
