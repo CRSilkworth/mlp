@@ -1,7 +1,7 @@
 import os
 import datetime
-from typing import Tuple, Text
-
+from typing import Tuple, Text, Optional, List
+import tensorflow as tf
 
 def pipeline_dirs(
   run_dir: Text,
@@ -37,3 +37,55 @@ def pipeline_dirs(
   pipeline_root = os.path.join(run_root, 'data')
 
   return proj_root, run_root, pipeline_root, serving_uri
+
+
+def lstrip_dirs(full_path, rm_path):
+  full_dirs = [d for d in full_path.split('/') if d != '']
+  rm_dirs = [d for d in rm_path.split('/') if d != '']
+
+  while rm_dirs:
+    rm_dir = rm_dirs.pop(0)
+    full_dir = full_dirs.pop(0)
+
+    if rm_dir != full_dir:
+      raise ValueError("{} not a prefix of {}.".format(rm_path, full_path))
+
+  if rm_dirs:
+    raise ValueError("{} not a prefix of {}.".format(rm_path, full_path))
+
+  return '/'.join(full_dirs)
+
+
+def copy_dir(
+  src_uri: Text,
+  dst_uri: Text,
+  ignore_subdirs: Optional[List[Text]] = None):
+
+  if ignore_subdirs is None:
+    ignore_subdirs = []
+  else:
+    ignore_subdirs = [os.path.join(src_uri, d) for d in ignore_subdirs]
+
+  tf.io.gfile.makedirs(dst_uri)
+
+  for src_dir_name, sub_dirs, file_names in tf.io.gfile.walk(src_uri):
+
+    skip_dir = False
+    for ignore_subdir in ignore_subdirs:
+
+      if src_dir_name.startswith(ignore_subdir):
+        skip_dir = True
+        break
+
+    if skip_dir:
+      continue
+
+    dst_dir_name = os.path.join(
+      dst_uri, lstrip_dirs(src_dir_name, src_uri)
+    )
+    tf.io.gfile.makedirs(dst_dir_name)
+
+    for file_name in file_names:
+      src_file_name = os.path.join(src_dir_name, file_name)
+      dst_file_name = os.path.join(dst_dir_name, file_name)
+      tf.io.gfile.copy(src_file_name, dst_file_name)
