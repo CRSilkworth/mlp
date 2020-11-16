@@ -3,13 +3,13 @@ import datetime
 from typing import Tuple, Text, Optional, List
 import tensorflow as tf
 
+
 def pipeline_dirs(
   run_dir: Text,
   run_str: Text,
   mlp_project: Text,
   mlp_subproject: Text,
   pipeline_name: Text) -> Tuple[Text, Text, Text, Text]:
-  proj_root = os.path.join(run_dir, 'tfx', pipeline_name)
   """Get the standard directory names from the project names.
 
   Parameters
@@ -27,16 +27,58 @@ def pipeline_dirs(
   serving_uri: The directory to write all final output objects (e.g. trained model.)
 
   """
+  pipeline_root = os.path.join(run_dir, 'tfx', pipeline_name)
   if run_str is not None:
-    run_root = os.path.join(proj_root, run_str)
+    run_root = os.path.join(pipeline_root, run_str)
   else:
     run_str = datetime.datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S')
-    run_root = os.path.join(proj_root, run_str)
+    run_root = os.path.join(pipeline_root, run_str)
 
-  serving_uri = os.path.join(run_root, 'serving')
-  pipeline_root = os.path.join(run_root, 'data')
+  serving_root = os.path.join(run_root, 'serving')
+  data_root = os.path.join(run_root, 'data')
 
-  return proj_root, run_root, pipeline_root, serving_uri
+  return pipeline_root, run_root, data_root, serving_root
+
+
+def pipeline_var_names(
+  run_dir: Text,
+  run_str: Text,
+  mlp_project: Text,
+  mlp_subproject: Text,
+  runner: Text,
+  pipeline_type: Text
+  ):
+
+  pipeline_name = '-'.join([
+    mlp_project,
+    mlp_subproject,
+    pipeline_type
+  ])
+  pipeline_mod = '.'.join([
+    mlp_subproject,
+    'pipelines',
+    runner,
+    pipeline_type
+  ])
+
+  pipeline_root, run_root, data_root, serving_root = pipeline_dirs(
+    run_dir,
+    run_str,
+    mlp_project,
+    mlp_subproject,
+    pipeline_name
+  )
+
+  return {
+    'pipeline_root': pipeline_root,
+    'run_root': run_root,
+    'data_root': data_root,
+    'serving_root': serving_root,
+    'pipeline_mod': pipeline_mod,
+    'pipeline_name': pipeline_name,
+    'vc_config_path': os.path.join(run_root, 'config', 'pipeline_vars.json'),
+    'metadata_path': os.path.join(data_root, 'metadata', 'metadata.db')
+  }
 
 
 def lstrip_dirs(full_path, rm_path):

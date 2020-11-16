@@ -143,3 +143,18 @@ def latest_incremental_artifacts(
   model_uri = latest_artifact_path(pipeline_uri, artifact_path='serving/model')
 
   return schema_uri, transform_graph_uri, model_uri
+
+def latest_run_root(run_dir, mlp_project, mlp_subproject, full_pipeline_type, incremental_pipeline_type):
+  full_pipeline_root = os.path.join(
+    run_dir,
+    'tfx',
+    '-'.join([mlp_project, mlp_subproject, full_pipeline_type])
+  )
+  incremental_pipeline_root = os.path.join(
+    run_dir,
+    'tfx',
+    '-'.join([mlp_project, mlp_subproject, incremental_pipeline_type])
+  )
+  run_root = multi_pipeline_uri(full_pipeline_root, incremental_pipeline_root)
+
+  return run_root
