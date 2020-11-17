@@ -4,7 +4,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from typing import Text, List, Dict, Optional
+from typing import Text, List, Dict, Optional, Any
 
 from tfx.orchestration import pipeline
 from tfx.orchestration import metadata
@@ -29,17 +29,14 @@ import os
 
 
 def create_pipeline(
+  prev_run_root: Text,
+  run_root: Text,
   pipeline_name: Text,
-  pipeline_root: Text,
   pipeline_mod: Text,
   query: Text,
-  latest_pipeline_uri: Text,
-  serving_uri: Text,
-  num_train_steps: int,
-  num_eval_steps: int,
   beam_pipeline_args: Optional[List[Text]] = None,
-  ai_platform_training_args: Optional[Dict[Text, Text]] = None,
-  metadata_path: Optional[Text] = None
+  metadata_path: Optional[Text] = None,
+  custom_config: Optional[Dict[Text, Any]] = None
 ) -> pipeline.Pipeline:
   """Implements the incremental pipeline.."""
 
@@ -56,19 +53,19 @@ def create_pipeline(
 
   schema_importer = ImporterNode(
     instance_name='import_schema',
-    source_uri=os.path.join(latest_pipeline_uri, 'serving/schema'),
+    source_uri=os.path.join(prev_run_root, 'serving/schema'),
     artifact_type=standard_artifacts.Schema,
     reimport=False
   )
   graph_importer = ImporterNode(
     instance_name='import_transform_graph',
-    source_uri=os.path.join(latest_pipeline_uri, 'serving/transform_graph'),
+    source_uri=os.path.join(prev_run_root, 'serving/transform_graph'),
     artifact_type=standard_artifacts.TransformGraph,
     reimport=False
   )
   model_importer = ImporterNode(
     instance_name='import_model',
-    source_uri=os.path.join(latest_pipeline_uri, 'serving/model'),
+    source_uri=os.path.join(prev_run_root, 'serving/model'),
     artifact_type=standard_artifacts.Model,
     reimport=False
   )
@@ -80,27 +77,16 @@ def create_pipeline(
       transform_graph=graph_importer.outputs['result']
   )
 
-  trainer_kwargs = {}
-  if ai_platform_training_args is not None:
-    trainer_kwargs = {
-      'custom_executor_spec': executor_spec.ExecutorClassSpec(
-          ai_platform_trainer_executor.Executor
-        ),
-      'custom_config': {
-        ai_platform_trainer_executor.TRAINING_ARGS_KEY: ai_platform_training_args
-      }
-    }
-
   # Uses user-provided Python function that implements a model using TF-Learn.
   trainer = Trainer(
     transformed_examples=transform.outputs['transformed_examples'],
     schema=schema_importer.outputs['result'],
     transform_graph=graph_importer.outputs['result'],
-    train_args=trainer_pb2.TrainArgs(num_steps=num_train_steps),
-    eval_args=trainer_pb2.EvalArgs(num_steps=num_eval_steps),
+    train_args=trainer_pb2.TrainArgs(),
+    eval_args=trainer_pb2.EvalArgs(),
     trainer_fn='{}.trainer_fn'.format(pipeline_mod),
     base_model=model_importer.outputs['result'],
-    **trainer_kwargs
+    custom_config=custom_config
   )
 
   # Not depdent on blessing. Always pushes regardless of quality.
@@ -108,7 +94,7 @@ def create_pipeline(
     model=trainer.outputs['model'],
     push_destination=pusher_pb2.PushDestination(
       filesystem=pusher_pb2.PushDestination.Filesystem(
-        base_directory=os.path.join(serving_uri, 'model')
+        base_directory=os.path.join(run_root, 'serving', 'model')
       )
     )
   )
@@ -117,7 +103,7 @@ def create_pipeline(
       artifact=schema_importer.outputs['result'],
       push_destination=pusher_pb2.PushDestination(
         filesystem=pusher_pb2.PushDestination.Filesystem(
-          base_directory=os.path.join(serving_uri, 'schema')
+          base_directory=os.path.join(run_root, 'serving', 'schema')
         )
       ),
       instance_name='schema_pusher'
@@ -127,7 +113,7 @@ def create_pipeline(
       artifact=graph_importer.outputs['result'],
       push_destination=pusher_pb2.PushDestination(
         filesystem=pusher_pb2.PushDestination.Filesystem(
-          base_directory=os.path.join(serving_uri, 'transform_graph')
+          base_directory=os.path.join(run_root, 'serving', 'transform_graph')
         )
       ),
       instance_name='transform_graph_pusher'
@@ -142,7 +128,7 @@ def create_pipeline(
 
   return pipeline.Pipeline(
     pipeline_name=pipeline_name,
-    pipeline_root=pipeline_root,
+    pipeline_root=os.path.join(run_root, 'data'),
     components=[
       example_gen,
       schema_importer,

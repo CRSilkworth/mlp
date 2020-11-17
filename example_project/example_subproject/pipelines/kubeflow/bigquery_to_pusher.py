@@ -13,6 +13,9 @@ from example_subproject import preprocess
 from example_subproject import train
 from mlp.utils.dirs import pipeline_dirs
 from mlp.kubeflow.pipeline_ops import set_gpu_limit
+from mlp.utils.dirs import pipeline_var_names
+from mlp.utils.sql import query_with_kwargs
+from mlp.utils.config import VarConfig
 
 _MLP_PROJECT = 'example_project'
 _MLP_SUBPROJECT = 'example_subproject'
@@ -21,71 +24,17 @@ _PIPELINE_TYPE = 'bigquery_to_pusher'
 _RUNNER = 'kubeflow'
 
 # Set to timestamp of previous run if you want to continue old run.
-_RUN_STR = None
-_RUN_DIR = os.path.join('gs://gcp_bucket')
-
-_GCP_PROJECT = 'gcp_project'
-_GCP_REGION = 'gcp_region'
-
-_QUERY = """
-  SELECT
-    item_description,
-    MAX(vendor_name) AS vendor,
-    MAX(bottle_volume_ml) AS max_bottle_volume,
-    MAX(category_name) AS category
-  FROM `bigquery-public-data.iowa_liquor_sales.sales`
-  GROUP BY item_description
-"""
+_RUN_DIR = os.path.join(os.environ['HOME'], 'runs')
 
 # Define the preprocessing/feature parameters
 _CATEGORICAL_FEATURE_KEYS = ['vendor']
 _NUMERICAL_FEATURE_KEYS = ['max_bottle_volume']
 _LABEL_KEY = 'category'
 
-# Define the training/model parameters
-_HIDDEN_LAYER_DIMS = [10]
-_BATCH_SIZE = 32
-_NUM_TRAIN_STEPS = 5000000
-_NUM_EVAL_STEPS = 10000
-_WARMUP_PROP = 0.1
-_COOLDOWN_PROP = 0.1
-_WARM_START_FROM = None
-_SAVE_SUMMARY_STEPS = 100
-_SAVE_CHECKPOINT_SECS = 3600
-_LEARNING_RATE = 2e-5
-_NUM_GPUS = 1
-
-pipeline_name = '-'.join([
-  _MLP_PROJECT,
-  _MLP_SUBPROJECT,
-  _PIPELINE_TYPE
-])
-pipeline_mod = '.'.join([
-  _MLP_SUBPROJECT,
-  'pipelines',
-  _RUNNER,
-  _PIPELINE_TYPE
-])
-proj_root, run_root, pipeline_root, serving_uri = pipeline_dirs(
-  _RUN_DIR,
-  _RUN_STR,
-  _MLP_PROJECT,
-  _MLP_SUBPROJECT,
-  pipeline_name
-)
-
 trainer_fn = train.trainer_factory(
-  batch_size=_BATCH_SIZE,
-  learning_rate=_LEARNING_RATE,
-  hidden_layer_dims=_HIDDEN_LAYER_DIMS,
   categorical_feature_keys=_CATEGORICAL_FEATURE_KEYS,
   numerical_feature_keys=_NUMERICAL_FEATURE_KEYS,
   label_key=_LABEL_KEY,
-  warmup_prop=_WARMUP_PROP,
-  cooldown_prop=_COOLDOWN_PROP,
-  # warm_start_from=_WARM_START_FROM,
-  save_summary_steps=_SAVE_SUMMARY_STEPS,
-  save_checkpoints_secs=_SAVE_CHECKPOINT_SECS
 )
 
 preprocessing_fn = preprocess.preprocess_factory(
@@ -94,39 +43,89 @@ preprocessing_fn = preprocess.preprocess_factory(
   label_key=_LABEL_KEY,
 )
 
-# If running with dataflow
-beam_pipeline_args = [
-  # If you want to use DataFlow, ensure that the service account
-  # <kf-deployment-name>-user@<gcp_project>.iam.gserviceaccount.com has the
-  # ServiceAccount/ServiceAccountUser role.
-  # '--runner=DataflowRunner',
-  '--experiments=shuffle_mode=auto',
-  '--project=' + _GCP_PROJECT,
-  '--temp_location=' + os.path.join(_RUN_DIR, 'tmp'),
-  '--region=' + _GCP_REGION,
-  '--disk_size_gb=50',
-]
-pipeline_op_funcs = kubeflow_dag_runner.get_default_pipeline_operator_funcs()
-
-if _NUM_GPUS:
-  pipeline_op_funcs.append(set_gpu_limit(_NUM_GPUS))
 
 if __name__ == "__main__":
+  vc = VarConfig()
+  vc.gcp_project = 'gcp_project'
+  vc.gcp_region = 'gcp_region'
+  vc.mlp_project = _MLP_PROJECT
+  vc.mlp_subproject = _MLP_SUBPROJECT
+
+  vc.categorical_feature_keys = _CATEGORICAL_FEATURE_KEYS
+  vc.numerical_feature_keys = _NUMERICAL_FEATURE_KEYS
+  vc.label_key = _LABEL_KEY
+
+  # Set to timestamp of previous run if you want to continue old run.
+  vc.runner = _RUNNER
+  vc.run_dir = _RUN_DIR
+  vc.pipeline_type = _PIPELINE_TYPE
+  vc.run_str = None
+
+  _QUERY = """
+    SELECT
+      item_description,
+      MAX(vendor_name) AS vendor,
+      MAX(bottle_volume_ml) AS max_bottle_volume,
+      MAX(category_name) AS category
+    FROM `bigquery-public-data.iowa_liquor_sales.sales`
+    GROUP BY item_description
+  """
+
+  # Define the training/model parameters
+  vc.hidden_layer_dims = [10]
+  vc.batch_size = 32
+  vc.num_train_steps = 5000000
+  vc.num_eval_steps = 10000
+  vc.warmup_prop = 0.1
+  vc.cooldown_prop = 0.1
+  vc.warm_start_from = None
+  vc.save_summary_steps = 100
+  vc.save_checkpoint_secs = 3600
+  vc.learning_rate = 2e-5
+  vc.num_gpus = 1
+
+  vc.add_vars(**pipeline_var_names(
+      vc.run_dir,
+      vc.run_str,
+      vc.mlp_project,
+      vc.mlp_subproject,
+      vc.runner,
+      vc.pipeline_type
+    )
+  )
+
+  # If running with dataflow
+  vc.beam_pipeline_args = [
+    # If you want to use DataFlow, ensure that the service account
+    # <kf-deployment-name>-user@<gcp_project>.iam.gserviceaccount.com has the
+    # ServiceAccount/ServiceAccountUser role.
+    # '--runner=DataflowRunner',
+    '--experiments=shuffle_mode=auto',
+    '--project=' + vc.gcp_project,
+    '--temp_location=' + os.path.join(vc.run_dir, 'tmp'),
+    '--region=' + vc.gcp_region,
+    '--disk_size_gb=50',
+  ]
+
+  pipeline_op_funcs = kubeflow_dag_runner.get_default_pipeline_operator_funcs()
+  if vc.num_gpus:
+    pipeline_op_funcs.append(set_gpu_limit(vc.num_gpus))
+
   runner_config = kubeflow_dag_runner.KubeflowDagRunnerConfig(
     kubeflow_metadata_config=kubeflow_dag_runner.get_default_kubeflow_metadata_config(),
     pipeline_operator_funcs=pipeline_op_funcs,
     tfx_image=os.environ.get('KUBEFLOW_TFX_IMAGE', None)
   )
 
+  vc.write(vc.vc_config_path)
   kubeflow_dag_runner.KubeflowDagRunner(config=runner_config).run(
     create_pipeline(
-      pipeline_name=pipeline_name,
-      pipeline_root=pipeline_root,
-      pipeline_mod=pipeline_mod,
-      query=_QUERY,
-      serving_uri=serving_uri,
-      num_train_steps=_NUM_TRAIN_STEPS,
-      num_eval_steps=_NUM_EVAL_STEPS,
-      beam_pipeline_args=beam_pipeline_args,
+      run_root=vc.run_root,
+      pipeline_root=vc.pipeline_root,
+      pipeline_mod=vc.pipeline_mod,
+      query=vc.query,
+      beam_pipeline_args=vc.beam_pipeline_args,
+      metadata_path=os.path.join(vc.run_root, 'metadata', 'metadata.db'),
+      custom_config=vc.get_vars()
       )
   )

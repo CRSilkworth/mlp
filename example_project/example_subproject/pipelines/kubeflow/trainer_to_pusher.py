@@ -6,19 +6,17 @@ from __future__ import print_function
 import os
 
 from example_subproject.pipelines.defs.trainer_to_pusher import create_pipeline
-from tfx.orchestration.beam.beam_dag_runner import BeamDagRunner
+from tfx.orchestration.kubeflow import kubeflow_dag_runner
 
 from example_subproject import train
 import example_subproject.pipelines.beam.bigquery_to_pusher as full
 
 from mlp.utils.dir import pipeline_dirs
-from mlp.utils.dirs import pipeline_var_names
-from mlp.utils.sql import query_with_kwargs
-from mlp.utils.config import VarConfig
 from mlp.utils.resolvers import latest_run_root
 from mlp.utils.resolvers import latest_artifact_path
 from mlp.utils.config import VarConfig
 from mlp.utils.dirs import pipeline_var_names
+from mlp.kubeflow.pipeline_ops import set_gpu_limit
 
 _PIPELINE_TYPE = 'trainer_to_pusher'
 
@@ -38,7 +36,7 @@ if __name__ == "__main__":
   vc.save_summary_steps = 1
   vc.save_checkpoint_secs = 14400
   vc.learning_rate = 2e-5
-  vc.warm_start_from = None
+  vc.warm_start_from = none
 
   vc.model_uri = latest_artifact_path(prev_run_root, 'data/Trainer/model')
   vc.schema_uri = latest_artifact_path(prev_run_root, 'data/SchemaGen/schema')
@@ -56,7 +54,17 @@ if __name__ == "__main__":
   vc.add_vars(**var_names)
   vc.write(vc.vc_config_path)
 
-  DAG = BeamDagRunner().run(
+  pipeline_op_funcs = kubeflow_dag_runner.get_default_pipeline_operator_funcs()
+
+  if vc.num_gpus:
+    pipeline_op_funcs.append(set_gpu_limit(vc.num_gpus))
+
+  runner_config = kubeflow_dag_runner.KubeflowDagRunnerConfig(
+    kubeflow_metadata_config=kubeflow_dag_runner.get_default_kubeflow_metadata_config(),
+    pipeline_operator_funcs=pipeline_op_funcs,
+    tfx_image=os.environ.get('KUBEFLOW_TFX_IMAGE', None)
+  )
+  kubeflow_dag_runner.KubeflowDagRunner(config=runner_config).run(
     create_pipeline(
       run_root=vc.run_root,
       pipeline_name=vc.pipeline_name,

@@ -176,17 +176,9 @@ def estimator_builder(
 
 
 def trainer_factory(
-  batch_size: int,
-  learning_rate: float,
-  hidden_layer_dims: List[int],
   categorical_feature_keys: List[Text],
   numerical_feature_keys: List[Text],
   label_key: Text,
-  warmup_prop: float,
-  cooldown_prop: float,
-  save_summary_steps: int,
-  save_checkpoints_secs: int,
-  warm_start_from: Optional[Text] = None,
 ) -> Callable:
   """
   Define a trainer_fn function to pass to the Trainer component.
@@ -245,12 +237,12 @@ def trainer_factory(
     train_input_fn = pre.get_input_fn(
       hparams.train_files,
       tf_transform_output,
-      batch_size=batch_size
+      batch_size=hparams.batch_size
     )
     eval_input_fn = pre.get_input_fn(
       hparams.eval_files,
       tf_transform_output,
-      batch_size=batch_size
+      batch_size=hparams.batch_size
     )
 
     # Define how to receive data during inference and export.
@@ -262,11 +254,11 @@ def trainer_factory(
     # Define the training and eval specifications
     train_spec = tf.estimator.TrainSpec(
       train_input_fn,
-      max_steps=hparams.train_steps
+      max_steps=hparams.num_train_steps
     )
     eval_spec = tf.estimator.EvalSpec(
       eval_input_fn,
-      steps=hparams.eval_steps,
+      steps=hparams.num_eval_steps,
       exporters=[exporter],
       name='intent-classifier-eval'
     )
@@ -279,9 +271,9 @@ def trainer_factory(
     # Set the other training specs
     run_config = tf.estimator.RunConfig(
       model_dir=hparams.serving_model_dir,
-      save_summary_steps=save_summary_steps,
-      log_step_count_steps=save_summary_steps,
-      save_checkpoints_secs=save_checkpoints_secs,
+      save_summary_steps=hparams.save_summary_steps,
+      log_step_count_steps=hparams.save_summary_steps,
+      save_checkpoints_secs=hparams.save_checkpoints_secs,
       keep_checkpoint_max=1,
       train_distribute=strategy,
       eval_distribute=strategy,
@@ -292,15 +284,14 @@ def trainer_factory(
     # Define the estimator
     estimator = estimator_builder(
       run_config=run_config,
-      learning_rate=learning_rate,
-      hidden_layer_dims=hidden_layer_dims,
+      learning_rate=hparams.learning_rate,
+      hidden_layer_dims=hparams.hidden_layer_dims,
       vocabularies=vocabularies,
       numerical_feature_keys=numerical_feature_keys,
-      num_train_steps=hparams.train_steps,
-      num_warmup_steps=int(hparams.train_steps * warmup_prop),
-      num_cool_down_steps=int(hparams.train_steps * cooldown_prop),
+      num_train_steps=hparams.num_train_steps,
+      num_warmup_steps=int(hparams.num_train_steps * hparams.warmup_prop),
+      num_cool_down_steps=int(hparams.num_train_steps * hparams.cooldown_prop),
       label_key=label_key,
-      warm_start_from=warm_start_from
     )
 
     return {

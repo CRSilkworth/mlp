@@ -4,7 +4,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from typing import Text, List, Dict, Optional
+from typing import Text, List, Dict, Optional, Any
 
 from tfx.orchestration import pipeline
 from tfx.orchestration import metadata
@@ -25,20 +25,20 @@ from tfx.extensions.google_cloud_ai_platform.trainer import executor as ai_platf
 from tfx.types import artifact
 from tfx.types import artifact_utils
 
+import os
+
 
 def create_pipeline(
+  run_root: Text,
   pipeline_name: Text,
-  pipeline_root: Text,
   pipeline_mod: Text,
   examples_uri: Text,
   schema_uri: Text,
   transform_graph_uri: Text,
   model_uri: Text,
-  num_train_steps: int,
-  num_eval_steps: int,
   beam_pipeline_args: Optional[List[Text]] = None,
-  ai_platform_training_args: Optional[Dict[Text, Text]] = None,
-  metadata_path: Optional[Text] = None
+  metadata_path: Optional[Text] = None,
+  custom_config: Optional[Dict[Text, Any]] = None
 ) -> pipeline.Pipeline:
   """Implements the incremental pipeline.."""
 
@@ -64,26 +64,15 @@ def create_pipeline(
     reimport=False
   )
 
-  trainer_kwargs = {}
-  if ai_platform_training_args is not None:
-    trainer_kwargs = {
-      'custom_executor_spec': executor_spec.ExecutorClassSpec(
-          ai_platform_trainer_executor.Executor
-        ),
-      'custom_config': {
-        ai_platform_trainer_executor.TRAINING_ARGS_KEY: ai_platform_training_args
-      }
-    }
-
   # Uses user-provided Python function that implements a model using TF-Learn.
   trainer = Trainer(
     transformed_examples=examples_importer.outputs['result'],
     schema=schema_importer.outputs['result'],
     transform_graph=transform_graph_importer.outputs['result'],
-    train_args=trainer_pb2.TrainArgs(num_steps=num_train_steps),
-    eval_args=trainer_pb2.EvalArgs(num_steps=num_eval_steps),
+    train_args=trainer_pb2.TrainArgs(),
+    eval_args=trainer_pb2.EvalArgs(),
     trainer_fn='{}.trainer_fn'.format(pipeline_mod),
-    **trainer_kwargs
+    custom_config=custom_config
   )
 
   # Not depdent on blessing. Always pushes regardless of quality.
@@ -105,7 +94,7 @@ def create_pipeline(
 
   return pipeline.Pipeline(
     pipeline_name=pipeline_name,
-    pipeline_root=pipeline_root,
+    pipeline_root=os.path.join(run_root, 'data'),
     components=[
       schema_importer,
       transform_graph_importer,

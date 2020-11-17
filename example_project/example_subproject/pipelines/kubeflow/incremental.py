@@ -13,100 +13,65 @@ from example_subproject import train
 import example_subproject.pipelines.kubflow.bigquery_to_pusher as full
 from mlp.utils.dir import pipeline_dirs
 from mlp.utils.resolvers import multi_pipeline_uri
+from mlp.utils.resolvers import latest_run_root
+from mlp.utils.resolvers import latest_artifact_path
+from mlp.utils.config import VarConfig
+from mlp.utils.dirs import pipeline_var_names
 
 _PIPELINE_TYPE = 'incremental'
-_RUN_STR = None
 
-_FREQ_NUM = -3
-_FREQ = "MONTH"
-_NUM_OLD = 5000
-_QUERY = """
-(
-  SELECT
-    item_description,
-    MAX(vendor_name) AS vendor,
-    MAX(bottle_volume_ml) AS max_bottle_volume,
-    MAX(category_name) AS category
-  FROM `bigquery-public-data.iowa_liquor_sales.sales`
-  WHERE date > DATE_ADD(CURRENT_DATE(), INTERVAL {} {})
-  GROUP BY item_description
-)
-UNION DISTINCT
-(
-  SELECT
-    item_description,
-    MAX(vendor_name) AS vendor,
-    MAX(bottle_volume_ml) AS max_bottle_volume,
-    MAX(category_name) AS category
-  FROM `bigquery-public-data.iowa_liquor_sales.sales`
-  GROUP BY item_description
-  LIMIT {}
- )
-""".format(_FREQ_NUM, _FREQ, _NUM_OLD)
-
-# Define the training/model parameters
-_NUM_TRAIN_STEPS = 100
-_NUM_EVAL_STEPS = 10
-_WARMUP_PROP = 0.1
-_COOLDOWN_PROP = 0.1
-_SAVE_SUMMARY_STEPS = 10
-_SAVE_CHECKPOINT_SECS = 3600
-_LEARNING_RATE = 2e-5
-
-# This will take the latest assets/checkpoints from the full/other
-# incremental runs of the pipelines.
-any_pipeline = '-'.join([
-  full._MLP_PROJECT,
-  full._MLP_SUBPROJECT,
-  '*'
-])
-
-pipeline_name = '-'.join([
-  full._MLP_PROJECT,
-  full._MLP_SUBPROJECT,
-  _PIPELINE_TYPE
-])
-pipeline_mod = '.'.join([
-  full._MLP_SUBPROJECT,
-  'pipelines',
-  full._RUNNER,
-  _PIPELINE_TYPE
-])
-
-proj_root, run_root, pipeline_root, serving_uri = pipeline_dirs(
-  full._RUN_DIR,
-  _RUN_STR,
-  full._MLP_PROJECT,
-  full._MLP_SUBPROJECT,
-  pipeline_name
-)
-
-latest_pipeline_uri = multi_pipeline_uri(full.proj_root, proj_root)
-
-trainer_fn = train.trainer_factory(
-  batch_size=full._BATCH_SIZE,
-  learning_rate=_LEARNING_RATE,
-  hidden_layer_dims=full._HIDDEN_LAYER_DIMS,
-  categorical_feature_keys=full._CATEGORICAL_FEATURE_KEYS,
-  numerical_feature_keys=full._NUMERICAL_FEATURE_KEYS,
-  label_key=full._LABEL_KEY,
-  warmup_prop=_WARMUP_PROP,
-  cooldown_prop=_COOLDOWN_PROP,
-  # warm_start_from=full.model_uri,
-  save_summary_steps=_SAVE_SUMMARY_STEPS,
-  save_checkpoints_secs=_SAVE_CHECKPOINT_SECS
-)
-
-preprocessing_fn = preprocess.preprocess_factory(
-  categorical_feature_keys=full._CATEGORICAL_FEATURE_KEYS,
-  numerical_feature_keys=full._NUMERICAL_FEATURE_KEYS,
-  label_key=full._LABEL_KEY,
-)
-
-beam_pipeline_args = full.beam_pipeline_args
-ai_platform_training_args = full.ai_platform_training_args
+trainer_fn = full.trainer_fn
 
 if __name__ == "__main__":
+  prev_run_root = latest_run_root(
+    full._RUN_DIR,
+    full._MLP_PROJECT,
+    full._MLP_SUBPROJECT,
+    full._PIPELINE_TYPE,
+    _PIPELINE_TYPE
+  )
+
+  vc = VarConfig(os.path.join(prev_run_root, 'config', 'pipeline_vars.json'))
+  vc.prev_run_root = prev_run_root
+  vc.pipeline_type = _PIPELINE_TYPE
+  vc.run_str = None
+
+  vc.freq_num = -3
+  vc.freq = "month"
+  vc.num_old = 5000
+  vc.query = """
+  (
+    SELECT
+      item_description,
+      MAX(vendor_name) AS vendor,
+      MAX(bottle_volume_ml) AS max_bottle_volume,
+      MAX(category_name) AS category
+    FROM `bigquery-public-data.iowa_liquor_sales.sales`
+    WHERE date > DATE_ADD(CURRENT_DATE(), INTERVAL {} {})
+    GROUP BY item_description
+  )
+  UNION DISTINCT
+  (
+    SELECT
+      item_description,
+      MAX(vendor_name) AS vendor,
+      MAX(bottle_volume_ml) AS max_bottle_volume,
+      MAX(category_name) AS category
+    FROM `bigquery-public-data.iowa_liquor_sales.sales`
+    GROUP BY item_description
+    LIMIT {}
+   )
+  """.format(vc.freq_num, vc.freq, vc.num_old)
+
+  # Define the training/model parameters
+  vc.num_train_steps = 100
+  vc.num_eval_steps = 10
+  vc.warmup_prop = 0.1
+  vc.cooldown_prop = 0.1
+  vc.save_summary_steps = 10
+  vc.save_checkpoint_secs = 3600
+  vc.learning_rate = 2e-5
+
   runner_config = kubeflow_dag_runner.KubeflowDagRunnerConfig(
     kubeflow_metadata_config=kubeflow_dag_runner.get_default_kubeflow_metadata_config(),
     tfx_image=os.environ.get('KUBEFLOW_TFX_IMAGE', None)
@@ -114,15 +79,14 @@ if __name__ == "__main__":
 
   kubeflow_dag_runner.KubeflowDagRunner(config=runner_config).run(
     create_pipeline(
-      pipeline_name=pipeline_name,
-      pipeline_root=pipeline_root,
-      pipeline_mod=pipeline_mod,
-      query=_QUERY,
-      serving_uri=serving_uri,
-      latest_pipeline_uri=latest_pipeline_uri,
-      num_train_steps=_NUM_TRAIN_STEPS,
-      num_eval_steps=_NUM_EVAL_STEPS,
-      beam_pipeline_args=beam_pipeline_args,
-      ai_platform_training_args=ai_platform_training_args
+      prev_run_root=vc.prev_run_root,
+      run_root=vc.run_root,
+      pipeline_name=vc.pipeline_name,
+      pipeline_mod=vc.pipeline_mod,
+      query=vc.query,
+      base_model_uri=vc.base_model_uri,
+      beam_pipeline_args=vc.beam_pipeline_args,
+      metadata_path=vc.metadata_path,
+      custom_config=vc.get_vars(),
       )
   )
