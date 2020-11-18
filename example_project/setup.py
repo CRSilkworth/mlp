@@ -22,7 +22,7 @@ with open('version.py') as fp:
 __version__ = globals_dict['__version__']
 
 setup(
-    name='example_project',
+    name='__example_project__',
     version=__version__,
     author='',
     author_email='',

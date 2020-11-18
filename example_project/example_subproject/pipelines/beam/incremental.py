@@ -6,12 +6,12 @@ from __future__ import print_function
 import datetime
 import os
 
-from example_subproject.pipelines.defs.incremental import create_pipeline
+from __example_subproject__.pipelines.defs.incremental import create_pipeline
 from tfx.orchestration.beam.beam_dag_runner import BeamDagRunner
 
-from example_subproject import preprocess
-from example_subproject import train
-import example_subproject.pipelines.beam.bigquery_to_pusher as full
+from __example_subproject__ import preprocess
+from __example_subproject__ import train
+import __example_subproject__.pipelines.beam.bigquery_to_pusher as full
 from mlp.utils.dirs import pipeline_dirs
 from mlp.utils.resolvers import multi_pipeline_uri
 from mlp.utils.resolvers import latest_run_root
@@ -70,7 +70,7 @@ if __name__ == "__main__":
   vc.warmup_prop = 0.1
   vc.cooldown_prop = 0.1
   vc.save_summary_steps = 1
-  vc.save_checkpoint_secs = 14400
+  vc.save_checkpoints_secs = 14400
   vc.learning_rate = 2e-5
 
   var_names = pipeline_var_names(

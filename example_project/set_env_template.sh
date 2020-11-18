@@ -4,11 +4,11 @@
 # the kubeflow deployment or have permissions to upload new pipelines etc.
 # They are typically associated with some service account from here.
 # https://console.cloud.google.com/apis/credentials
-export GOOGLE_APPLICATION_CREDENTIALS="gcp_credentials_json"
+export GOOGLE_APPLICATION_CREDENTIALS="__gcp_credentials_json__"
 
 # Set your default project/compute zone
-export PROJECT='gcp_project'
-export ZONE='gcp_zone'
+export PROJECT='__gcp_project__'
+export ZONE='__gcp_zone__'
 
 gcloud config set project ${PROJECT}
 gcloud config set compute/zone ${ZONE}
@@ -19,8 +19,8 @@ gcloud config set compute/zone ${ZONE}
 # The client id and secret are typically set when you create your kubeflow
 # deployment. They can be found here under OAuth 2.0 Client IDs.
 # https://console.cloud.google.com/apis/credentials
-export CLIENT_ID='iap_client_id'
-export CLIENT_SECRET='iap_client_secret'
+export CLIENT_ID='__iap_client_id__'
+export CLIENT_SECRET='__iap_client_secret__'
 
 # If using AI Platform the endpoint would be something like
 # 1e9deb537390ca22-dot-asia-east1.pipelines.googleusercontent.com

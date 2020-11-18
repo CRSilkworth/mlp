@@ -6,25 +6,25 @@ from __future__ import print_function
 import datetime
 import os
 
-from example_subproject.pipelines.defs.bigquery_to_pusher import create_pipeline
+from __example_subproject__.pipelines.defs.bigquery_to_pusher import create_pipeline
 from tfx.orchestration.kubeflow import kubeflow_dag_runner
 
-from example_subproject import preprocess
-from example_subproject import train
+from __example_subproject__ import preprocess
+from __example_subproject__ import train
 from mlp.utils.dirs import pipeline_dirs
 from mlp.kubeflow.pipeline_ops import set_gpu_limit
 from mlp.utils.dirs import pipeline_var_names
 from mlp.utils.sql import query_with_kwargs
 from mlp.utils.config import VarConfig
 
-_MLP_PROJECT = 'example_project'
-_MLP_SUBPROJECT = 'example_subproject'
+_MLP_PROJECT = '__example_project__'
+_MLP_SUBPROJECT = '__example_subproject__'
 
 _PIPELINE_TYPE = 'bigquery_to_pusher'
 _RUNNER = 'kubeflow'
 
 # Set to timestamp of previous run if you want to continue old run.
-_RUN_DIR = os.path.join(os.environ['HOME'], 'runs')
+_RUN_DIR = os.path.join('gs://__gcp_bucket__', 'runs')
 
 # Define the preprocessing/feature parameters
 _CATEGORICAL_FEATURE_KEYS = ['vendor']
@@ -46,8 +46,8 @@ preprocessing_fn = preprocess.preprocess_factory(
 
 if __name__ == "__main__":
   vc = VarConfig()
-  vc.gcp_project = 'gcp_project'
-  vc.gcp_region = 'gcp_region'
+  vc.gcp_project = '__gcp_project__'
+  vc.gcp_region = '__gcp_region__'
   vc.mlp_project = _MLP_PROJECT
   vc.mlp_subproject = _MLP_SUBPROJECT
 
@@ -61,7 +61,7 @@ if __name__ == "__main__":
   vc.pipeline_type = _PIPELINE_TYPE
   vc.run_str = None
 
-  _QUERY = """
+  vc.query = """
     SELECT
       item_description,
       MAX(vendor_name) AS vendor,
@@ -80,7 +80,7 @@ if __name__ == "__main__":
   vc.cooldown_prop = 0.1
   vc.warm_start_from = None
   vc.save_summary_steps = 100
-  vc.save_checkpoint_secs = 3600
+  vc.save_checkpoints_secs = 3600
   vc.learning_rate = 2e-5
   vc.num_gpus = 1
 
@@ -121,7 +121,7 @@ if __name__ == "__main__":
   kubeflow_dag_runner.KubeflowDagRunner(config=runner_config).run(
     create_pipeline(
       run_root=vc.run_root,
-      pipeline_root=vc.pipeline_root,
+      pipeline_name=vc.pipeline_name,
       pipeline_mod=vc.pipeline_mod,
       query=vc.query,
       beam_pipeline_args=vc.beam_pipeline_args,

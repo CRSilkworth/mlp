@@ -8,9 +8,9 @@ import tensorflow_transform as tft
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 
-from example_subproject import model
-from example_subproject import preprocess as pre
-from example_subproject import metrics
+from __example_subproject__ import model
+from __example_subproject__ import preprocess as pre
+from __example_subproject__ import metrics
 from mlp.tensorflow.learning_rate_schedules import piecewise_learning_rate
 
 
@@ -247,7 +247,7 @@ def trainer_factory(
 
     # Define how to receive data during inference and export.
     exporter = tf.estimator.FinalExporter(
-      'example_project',
+      '__example_project__',
       lambda: pre._example_serving_receiver_fn(tf_transform_output, schema, label_key)
     )
 

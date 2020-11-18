@@ -5,11 +5,11 @@ from __future__ import print_function
 
 import os
 
-from example_subproject.pipelines.defs.trainer_to_pusher import create_pipeline
+from __example_subproject__.pipelines.defs.trainer_to_pusher import create_pipeline
 from tfx.orchestration.beam.beam_dag_runner import BeamDagRunner
 
-from example_subproject import train
-import example_subproject.pipelines.beam.bigquery_to_pusher as full
+from __example_subproject__ import train
+import __example_subproject__.pipelines.beam.bigquery_to_pusher as full
 
 from mlp.utils.dir import pipeline_dirs
 from mlp.utils.dirs import pipeline_var_names
@@ -36,7 +36,7 @@ if __name__ == "__main__":
   vc.warmup_prop = 0.1
   vc.cooldown_prop = 0.1
   vc.save_summary_steps = 1
-  vc.save_checkpoint_secs = 14400
+  vc.save_checkpoints_secs = 14400
   vc.learning_rate = 2e-5
   vc.warm_start_from = None
 
