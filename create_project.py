@@ -46,14 +46,15 @@ def main(argv: List[Any]):
   os.makedirs(FLAGS.dir, exist_ok=True)
 
   string_map = {
-    'gcp_project': FLAGS.gcp_project,
-    'example_project': FLAGS.mlp_project,
-    'example_subproject': FLAGS.mlp_subproject,
-    'gcp_zone': FLAGS.gcp_zone,
-    'gcp_region': FLAGS.gcp_zone[:-2],
-    'gcp_credentials_json': FLAGS.gcp_credentials_json,
-    'iap_client_id': FLAGS.iap_client_id,
-    'iap_client_secret': FLAGS.iap_client_secret
+    '__gcp_project__': FLAGS.gcp_project,
+    '__gcp_bucket__': FLAGS.gcp_bucket,
+    '__example_project__': FLAGS.mlp_project,
+    '__example_subproject__': FLAGS.mlp_subproject,
+    '__gcp_zone__': FLAGS.gcp_zone,
+    '__gcp_region__': FLAGS.gcp_zone[:-2],
+    '__gcp_credentials_json__': FLAGS.gcp_credentials_json,
+    '__iap_client_id__': FLAGS.iap_client_id,
+    '__iap_client_secret__': FLAGS.iap_client_secret
   }
 
   example_project_dir = os.path.join(os.path.dirname(__file__), 'example_project')
