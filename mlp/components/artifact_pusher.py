@@ -144,8 +144,7 @@ def pusher_component_factory(artifact_type):
       )
       super(ArtifactPusher, self).__init__(
         spec=spec,
-        instance_name=instance_name,
-        enable_cache=enable_cache)
+        instance_name=instance_name)
   return ArtifactPusher
 
 

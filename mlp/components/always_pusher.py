@@ -39,6 +39,8 @@ from tfx.types.component_spec import ExecutionParameter
 from tfx.types.component_spec import ChannelParameter
 from tfx.types.component_spec import ComponentSpec
 from tfx.proto import pusher_pb2
+import time
+
 
 # Key for model in executor input_dict.
 MODEL_KEY = 'model'
@@ -78,7 +80,8 @@ class AlwaysPusherExecutor(base_executor.BaseExecutor):
     logging.info('Model pushing.')
     # Copy the model to pushing uri.
     model_path = path_utils.serving_model_path(model_export_uri)
-    model_version = path_utils.get_serving_model_version(model_export_uri)
+    model_version = str(int(time.time()))
+    # model_version = path_utils.get_serving_model_version(model_export_uri)
     logging.info('Model version is %s', model_version)
     io_utils.copy_dir(model_path, os.path.join(model_push_uri, model_version))
     logging.info('Model written to %s.', model_push_uri)
@@ -174,5 +177,5 @@ class AlwaysPusher(base_component.BaseComponent):
     super(AlwaysPusher, self).__init__(
         spec=spec,
         custom_executor_spec=custom_executor_spec,
-        instance_name=instance_name,
-        enable_cache=enable_cache)
+        instance_name=instance_name
+      )
