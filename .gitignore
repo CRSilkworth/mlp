@@ -44,6 +44,7 @@ airflow/*.orig
 *.ckpt.*
 *.meta
 *.txt
+**/tfhub_modules/*
 
 # Sensitive Info #
 ##################
