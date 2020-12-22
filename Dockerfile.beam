@@ -1,4 +1,4 @@
-FROM tensorflow/tensorflow:2.1.1-gpu AS tf_build
+FROM tensorflow/tensorflow:2.3.1-gpu AS tf_build
 WORKDIR /mlp
 COPY ./mlp ./mlp
 COPY requirements.txt ./
