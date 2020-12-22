@@ -55,6 +55,8 @@ startup.sh
 ################
 temp*.py
 temp*.sh
+**/*tmp*
+**/*temp*
 
 # Packages #
 ############
