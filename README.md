@@ -33,7 +33,7 @@ sudo install skaffold /usr/local/bin/
 ### Inference only install
 * Pull tensorflow serving docker image
 ```
-docker pull tensorflow/serving:2.0.0
+docker pull tensorflow/serving:<tf_serving_version>
 ```
 
 ### Set up GCP Services
