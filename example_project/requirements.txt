@@ -1,15 +1,8 @@
-tfx>=0.21.0,<0.22.0dev
-tensorflow==2.1.2
-pandas<1.0.0
-httplib2>=0.18.0
-cachetools<4, >=3.1.0
-tensorflow-serving-api<2.2.0
+tfx>=0.21.0,<0.24.0dev
+tensorflow<2.4.0
+tensorflow-text<2.4.0
+tensorflow-serving-api<2.4.0
+tensorflow-hub==0.10.0
 tf-models-official==0.0.3.dev1
-tensorflow-text>=2.1.0, <2.2.0
-kubernetes<10.1.0
-requests>=2.23.0
-google-resumable-media==0.4.1
-google-cloud-storage==1.22.0
+notebook==6.1.5
 kfp==0.4.0
-mysql-connector==2.2.9
-sshtunnel==0.1.4
