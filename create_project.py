@@ -24,6 +24,7 @@ flags.mark_flag_as_required('mlp_subproject')
 flags.mark_flag_as_required('gcp_project')
 flags.mark_flag_as_required('gcp_bucket')
 
+
 def replace_strings_in_dir(dir, string_map):
   for dir_name, dirs, files in os.walk(dir):
     for file_name in files:
