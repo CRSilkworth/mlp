@@ -35,7 +35,7 @@ sudo install skaffold /usr/local/bin/
 ```
 docker pull tensorflow/serving:<tf_serving_version>
 ```
-
+Where <tf_serving_version> Should match (or at least be close to) the version specified in requirements.txt
 ### Set up GCP Services
 If you plan to use kubeflow on gcp, then you will likely need to enable and set up each of these services individually. If you only want to orchestrate with beam then you may not need to set up most (or possibly any) of these services. It should be noted that the example_project uses BigQuery as a data source however.
 
@@ -86,6 +86,7 @@ git clone --branch v<version> git+ssh://git@github.com/CRSilkworth/mlp.git
 cd mlp
 docker build . -f Dockerfile.beam -t mlp/beam:latest
 ```
+
 * Note: the example project assumes data will be pulled directly from BigQuery which is not possible without a GCP project setup.
 
 ### Install for kubeflow
