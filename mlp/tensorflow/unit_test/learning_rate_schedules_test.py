@@ -18,8 +18,7 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
-import mlp.common.tensorflow.learning_rate_schedules as lrs
-from mlp.common.proto import mysql_tunnel_config_pb2
+import mlp.tensorflow.learning_rate_schedules as lrs
 
 class LearningRateScheduleTest(tf.test.TestCase):
 
@@ -36,6 +35,27 @@ class LearningRateScheduleTest(tf.test.TestCase):
     @tf.function
     def train_step(global_step):
       adj_learning_rate = lrs.piecewise_learning_rate(global_step, learning_rate, num_train_steps, num_warmup_steps, num_cool_down_steps)
+
+      return adj_learning_rate
+
+    global_steps = tf.cast(list(range(num_train_steps)), tf.int32)
+    dataset = tf.data.Dataset.from_tensor_slices(
+      global_steps
+    )
+
+    for gs in dataset.take(num_train_steps):
+      print(train_step(gs).numpy())
+
+  def testPiecewiseLearningRatePower(self):
+    learning_rate = 100.0
+    num_train_steps = 100
+    num_warmup_steps = 10
+    num_cool_down_steps = 10
+
+    # adj_learning_rate = lrs.piecewise_learning_rate(global_step, learning_rate, num_train_steps, num_warmup_steps, num_cool_down_steps)
+    @tf.function
+    def train_step(global_step):
+      adj_learning_rate = lrs.piecewise_learning_rate(global_step, learning_rate, num_train_steps, num_warmup_steps, num_cool_down_steps, 1.0, 2.0)
 
       return adj_learning_rate
 
