@@ -33,7 +33,7 @@ class BertTokenizer(tf.keras.layers.Layer):
 
     self.max_seq_length = max_seq_length
 
-  def call(self, strings: tf.Tensor, trainable=False, **kwargs) -> tf.Tensor:
+  def call(self, strings: tf.Tensor, training=False, **kwargs) -> tf.Tensor:
     """Convert a tensor of strings into a tensor of token ids.
 
     Uses the WordpieceTokenizer to convert a tensor of shape N to N+1. The added
@@ -132,7 +132,7 @@ class BertEncoderInputs(tf.keras.layers.Layer):
 class BertEmbedder(tf.keras.layers.Layer):
   def __init__(
     self,
-    bert_dir: Optional[Text] = None,
+    bert_dir: Optional[Text],
     bert_trainable: Optional[bool] = False,
     max_seq_length: Optional[int] = 128,
     float_type: Optional[Any] = tf.float32,
@@ -155,10 +155,12 @@ class BertEmbedder(tf.keras.layers.Layer):
   def call(self, strings, training=None, **kwargs):
     tokens = self.bert_tokenizer(strings)
     encoder_inputs = self.bert_encoder_inputs(tokens)
-    embeddings, _ = self.bert_layer(encoder_inputs, training)
-    return embeddings
 
-  def _restore(self):
-    if self.checkpoint_dir:
-      checkpoint = tf.train.Checkpoint(bert_layer=self.bert_layer)
-      checkpoint.restore(tf.train.latest_checkpoint(self.checkpoint_dir)).assert_existing_objects_matched()
+    # NOTE: CAUTION!! This does not seem to properly load, at least when using
+    # in Estimator training.
+    checkpoint = tf.train.Checkpoint(root=self.bert_layer, bert_layer=self.bert_layer)
+    checkpoint.restore(tf.train.latest_checkpoint(self.checkpoint_dir)).assert_existing_objects_matched()
+
+    embeddings, _ = self.bert_layer(encoder_inputs, training)
+
+    return embeddings
