@@ -37,5 +37,5 @@ def piecewise_learning_rate(global_step, learning_rate, num_train_steps, num_war
     is_middle * learning_rate +
     is_cool_down * cool_down_learning_rate
   )
-  
+
   return adj_learning_rate
