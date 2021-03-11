@@ -46,7 +46,8 @@ def pipeline_var_names(
   mlp_project: Text,
   mlp_subproject: Text,
   runner: Text,
-  pipeline_type: Text
+  pipeline_type: Text,
+  version: Optional[Text] = None
   ):
 
   pipeline_name = '-'.join([
@@ -54,6 +55,12 @@ def pipeline_var_names(
     mlp_subproject,
     pipeline_type
   ])
+
+  if version is not None:
+    kfp_pipeline_name = '-'.join([pipeline_name, version])
+  else:
+    kfp_pipeline_name = pipeline_name
+
   pipeline_mod = '.'.join([
     mlp_subproject,
     'pipelines',
@@ -76,6 +83,7 @@ def pipeline_var_names(
     'serving_root': serving_root,
     'pipeline_mod': pipeline_mod,
     'pipeline_name': pipeline_name,
+    'kfp_pipeline_name': kfp_pipeline_name,
     'vc_config_path': os.path.join(run_root, 'config', 'pipeline_vars.json'),
     'metadata_path': os.path.join(data_root, 'metadata', 'metadata.db')
   }
