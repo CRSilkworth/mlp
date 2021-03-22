@@ -56,10 +56,8 @@ def pipeline_var_names(
     pipeline_type
   ])
 
-  if version is not None:
-    kfp_pipeline_name = '-'.join([pipeline_name, version])
-  else:
-    kfp_pipeline_name = pipeline_name
+  date = datetime.datetime.now().strftime("%Y_%m_%d")
+  kfp_pipeline_name = '-'.join([pipeline_name, date])
 
   pipeline_mod = '.'.join([
     mlp_subproject,
