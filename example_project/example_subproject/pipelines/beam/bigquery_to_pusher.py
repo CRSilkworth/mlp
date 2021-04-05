@@ -92,7 +92,8 @@ if __name__ == "__main__":
   )
 
   vc.beam_pipeline_args = [
-    '--project=' + vc.gcp_project
+    '--project=' + vc.gcp_project,
+    '--temp_location=' + os.path.join('gs://__gcp_bucket__', 'tmp'),
   ]
 
   vc.write(vc.vc_config_path)

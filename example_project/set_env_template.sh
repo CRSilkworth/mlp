@@ -33,4 +33,4 @@ export MLP_PROJECT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1
 
 export PYTHONPATH=$PYTHONPATH:$MLP_PROJECT_DIR
 
-source $MLP_PROJECT_DIR/../venv/bin/activate
+source $MLP_PROJECT_DIR/venv/bin/activate
