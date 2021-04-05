@@ -65,7 +65,7 @@ class BertTokenizer(tf.keras.layers.Layer):
       self.vocab_table,
       token_out_type=tf.int64
     )
-    tokens = self.whitespace_tokenizer.tokenize('[SEP] ' + strings)
+    tokens = self.whitespace_tokenizer.tokenize('[CLS] ' + strings)
     tokens = self.tokenizer.tokenize(tokens)
 
     # Collapse the ragged tensor dimension by one convert to a regular tensor.
