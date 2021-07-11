@@ -22,7 +22,7 @@ def estimator_builder(
   hidden_layer_dims: List[int],
   num_train_steps: int,
   num_warmup_steps: int,
-  num_cool_down_steps: int,
+  num_cooldown_steps: int,
   learning_rate: Optional[float] = 2e-5,
   top_ks: Optional[List[int]] = [1, 3, 5, 10],
   warm_start_from: Optional[Text] = None) -> tf.estimator.Estimator:
@@ -111,7 +111,7 @@ def estimator_builder(
       loss = tf.reduce_mean(loss)
 
       # Define the optimizer and minimize the loss
-      adj_learning_rate = piecewise_learning_rate(global_step, learning_rate, num_train_steps, num_warmup_steps, num_cool_down_steps)
+      adj_learning_rate = piecewise_learning_rate(global_step, learning_rate, num_train_steps, num_warmup_steps, num_cooldown_steps)
 
       optimizer = tf.compat.v1.train.AdamOptimizer(adj_learning_rate)
       train_op = optimizer.minimize(
@@ -135,7 +135,7 @@ def estimator_builder(
       loss = tf.reduce_mean(loss)
       probs = tf.nn.softmax(logits)
 
-      adj_learning_rate = piecewise_learning_rate(global_step, learning_rate, num_train_steps, num_warmup_steps, num_cool_down_steps)
+      adj_learning_rate = piecewise_learning_rate(global_step, learning_rate, num_train_steps, num_warmup_steps, num_cooldown_steps)
 
       # Get the evaluation ops
       eval_metrics = metrics.metric_fn(labels, probs, top_ks, adj_learning_rate)
@@ -290,7 +290,7 @@ def trainer_factory(
       numerical_feature_keys=numerical_feature_keys,
       num_train_steps=hparams.num_train_steps,
       num_warmup_steps=int(hparams.num_train_steps * hparams.warmup_prop),
-      num_cool_down_steps=int(hparams.num_train_steps * hparams.cooldown_prop),
+      num_cooldown_steps=int(hparams.num_train_steps * hparams.cooldown_prop),
       label_key=label_key,
     )
 
