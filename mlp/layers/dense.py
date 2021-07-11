@@ -19,6 +19,7 @@ class IndexedDense(tf.keras.layers.Layer):
     kernel_initializer: Optional[str] = 'glorot_uniform',
     bias_initializer: Optional[str] = 'zeros',
     dtype: Optional[tf.DType] = tf.float32,
+    batch_dims: Optional[int] = 0,
     **kwargs
     ):
     """Define the index layer.
@@ -41,6 +42,7 @@ class IndexedDense(tf.keras.layers.Layer):
     self.bias_initializer = bias_initializer
     self.num_indices = num_indices
     self.activation = activation
+    self.batch_dims = batch_dims
     # self.dtype = dtype
 
     self.activation_layer = tf.keras.layers.Activation(activation, dtype=dtype)
@@ -49,12 +51,14 @@ class IndexedDense(tf.keras.layers.Layer):
     self.ws = self.add_weight(
       shape=(self.num_indices, input_shape[0][-1], self.units),
       initializer=self.kernel_initializer,
-      trainable=self.trainable
+      trainable=self.trainable,
+      name='ws'
     )
     self.bs = self.add_weight(
       shape=(self.num_indices, self.units),
       initializer=self.bias_initializer,
-      trainable=self.trainable
+      trainable=self.trainable,
+      name='bs'
     )
 
   def call(self, inputs):
@@ -63,26 +67,47 @@ class IndexedDense(tf.keras.layers.Layer):
     # Pull out the weight and bias slices from the full tensors.
     weights = tf.gather_nd(
       self.ws,
-      index
+      index,
+      batch_dims=self.batch_dims
     )
     bias = tf.gather_nd(
       self.bs,
-      index
+      index,
+      batch_dims=self.batch_dims
     )
 
+    weights_indices = ['a', 'b', 'c']
+
+    input_indices = ['a', 'b']
     # Handles the case where the input has more than just a batch dimension and
     # input dimension. e.g. when there is a time dimension. Tiles the bias so
     # that it adds the same bias to each time step.
+    char_num = 100
+    extra_inp_dims = []
     if len(input.shape) > 2:
-      for dim in input.shape[1:-1]:
+      for dim in list(input.shape[1:-1]):
+        char = chr(char_num)
+        extra_inp_dims.append(char)
+        input_indices.insert(1, char)
         bias = tf.expand_dims(bias, axis=1)
+
+        char_num += 1
 
       shape = input.shape
       bias = tf.tile(
         bias,
-        multiples=[1] + shape[1:-1] + [1]
+        multiples=[1] + shape[1:-1] + [1]*(len(index.shape) - 1)
       )
 
-    output = tf.einsum('i...j,i...jk->i...k', input, weights) + bias
+    extra_ind_dims = []
+    for dim in range(len(index.shape) - 2):
+      char = chr(char_num)
+      extra_ind_dims.append(char)
+      weights_indices.insert(1, char)
+
+      char_num += 1
+
+    ein_str = ''.join(input_indices) + ',' + ''.join(weights_indices) + '->a' + ''.join(extra_inp_dims) + ''.join(extra_ind_dims) + 'c'
+    output = tf.einsum(ein_str, input, weights) + bias
     output = self.activation_layer(output)
     return output
