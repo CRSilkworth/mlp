@@ -5,13 +5,12 @@ from __future__ import print_function
 
 import os
 
-from __example_subproject__.pipelines.defs.trainer_to_pusher import create_pipeline
+from mlp.pipelines.trainer_to_pusher import create_pipeline
 from tfx.orchestration.beam.beam_dag_runner import BeamDagRunner
 
 from __example_subproject__ import train
 import __example_subproject__.pipelines.beam.bigquery_to_pusher as full
 
-from mlp.utils.dir import pipeline_dirs
 from mlp.utils.dirs import pipeline_var_names
 from mlp.utils.sql import query_with_kwargs
 from mlp.utils.config import VarConfig
@@ -40,7 +39,6 @@ if __name__ == "__main__":
   vc.learning_rate = 2e-5
   vc.warm_start_from = None
 
-  vc.model_uri = latest_artifact_path(prev_run_root, 'data/Trainer/model')
   vc.schema_uri = latest_artifact_path(prev_run_root, 'data/SchemaGen/schema')
   vc.examples_uri = latest_artifact_path(prev_run_root, 'data/Transform/transformed_examples')
   vc.transform_graph_uri = latest_artifact_path(prev_run_root, 'data/Transform/transform_graph')
@@ -64,7 +62,6 @@ if __name__ == "__main__":
       schema_uri=vc.schema_uri,
       transform_graph_uri=vc.transform_graph_uri,
       examples_uri=vc.examples_uri,
-      model_uri=vc.model_uri,
       beam_pipeline_args=vc.beam_pipeline_args,
       metadata_path=vc.metadata_path,
       custom_config=vc.get_vars()

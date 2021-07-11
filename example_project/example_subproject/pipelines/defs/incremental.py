@@ -13,7 +13,7 @@ from tfx.components import ImporterNode
 from mlp.components.transform_with_graph import TransformWithGraph
 from tfx.components import Trainer
 from tfx.extensions.google_cloud_big_query.example_gen.component import BigQueryExampleGen
-from tfx.components.base import executor_spec
+from tfx.dsl.components.base import executor_spec
 from mlp.components.always_pusher import AlwaysPusher
 from mlp.components.artifact_pusher import SchemaPusher
 from mlp.components.artifact_pusher import TransformGraphPusher

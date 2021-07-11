@@ -19,7 +19,7 @@ from mlp.components.artifact_pusher import SchemaPusher
 from mlp.components.artifact_pusher import TransformGraphPusher
 from tfx.extensions.google_cloud_big_query.example_gen.component import BigQueryExampleGen
 
-from tfx.components.base import executor_spec
+from tfx.dsl.components.base import executor_spec
 
 from tfx.proto import trainer_pb2
 from tfx.proto import example_gen_pb2

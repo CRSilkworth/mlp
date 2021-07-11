@@ -7,7 +7,7 @@ import datetime
 import os
 
 from tfx.orchestration.beam.beam_dag_runner import BeamDagRunner
-from __example_subproject__.pipelines.defs.bigquery_to_pusher import create_pipeline
+from mlp.pipelines.bigquery_to_pusher import create_pipeline
 
 from __example_subproject__.preprocess import preprocess_factory
 from __example_subproject__.train import trainer_factory

@@ -5,7 +5,7 @@ from __future__ import print_function
 
 import os
 
-from __example_subproject__.pipelines.defs.bigquery_to_pusher import create_pipeline
+from mlp.pipelines.bigquery_to_pusher import create_pipeline
 from tfx.orchestration.kubeflow import kubeflow_dag_runner
 
 from __example_subproject__ import preprocess
