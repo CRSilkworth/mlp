@@ -9,12 +9,12 @@ import os
 import unittest
 import tempfile
 
-from mlp.utils.dirs import copy_dir
+from mlp.utils.dirs import copy_dir, download_dir
 
 
 class DirsTest(unittest.TestCase):
 
-  def copy_dir(self):
+  def test_copy_dir(self):
     artifact_dirs = [
       '2020-08-01-09-05-00/data/AlwaysPusher/pushed_model/40/',
       '2020-08-01-09-05-00/data/AlwaysPusher/pushed_model/300/',
@@ -35,6 +35,11 @@ class DirsTest(unittest.TestCase):
         copy_dir(src_pipeline_uri, dst_pipeline_uri)
         copy_dir(dst_pipeline_uri, next_pipeline_uri)
 
+  def test_download_dir(self):
+    src_uri = 'gs://biwako-prd/tmp/model/1/eval_model_dir'
+    with tempfile.TemporaryDirectory() as temp_dir:
+      download_dir(src_uri, temp_dir)
+      print(temp_dir)
 
   def _touch(self, path):
     with open(path, 'a'):
@@ -43,5 +48,5 @@ class DirsTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
-  unittest.main()
-  # tf.test.main()
+  # unittest.main()
+  tf.test.main()
