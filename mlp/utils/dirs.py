@@ -160,26 +160,29 @@ def download_dir(
   bucket = storage_client.get_bucket(bucket_name)
   blobs = bucket.list_blobs(prefix=prefix)
   for blob in blobs:
-      src_file_name = blob.name.split('/')[-1]
-      src_dir_name = os.path.join(
-        'gs://', bucket_name, '/'.join(blob.name.split('/')[:-1])
-      )
-      skip_dir = False
+    src_file_name = blob.name.split('/')[-1]
+    if not src_file_name:
+      continue
 
-      for ignore_subdir in ignore_subdirs:
+    src_dir_name = os.path.join(
+      'gs://', bucket_name, '/'.join(blob.name.split('/')[:-1])
+    )
+    skip_dir = False
 
-        if src_dir_name.startswith(ignore_subdir):
-          skip_dir = True
-          break
+    for ignore_subdir in ignore_subdirs:
 
-      if skip_dir:
-        continue
+      if src_dir_name.startswith(ignore_subdir):
+        skip_dir = True
+        break
 
-      dst_dir_name = os.path.join(
-        dst_uri, lstrip_dirs(src_dir_name, src_uri)
-      )
-      tf.io.gfile.makedirs(dst_dir_name)
+    if skip_dir:
+      continue
 
-      dst_file_name = os.path.join(dst_dir_name, src_file_name)
-      blob.download_to_filename(dst_file_name)
-      print(blob.name, dst_file_name)
+    dst_dir_name = os.path.join(
+      dst_uri, lstrip_dirs(src_dir_name, src_uri)
+    )
+    tf.io.gfile.makedirs(dst_dir_name)
+
+    print(dst_dir_name, src_file_name)
+    dst_file_name = os.path.join(dst_dir_name, src_file_name)
+    blob.download_to_filename(dst_file_name)
