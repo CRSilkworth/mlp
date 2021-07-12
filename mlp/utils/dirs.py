@@ -1,5 +1,6 @@
 import os
 import datetime
+from google.cloud import storage
 from typing import Tuple, Text, Optional, List
 import tensorflow as tf
 
@@ -137,3 +138,48 @@ def copy_dir(
       src_file_name = os.path.join(src_dir_name, file_name)
       dst_file_name = os.path.join(dst_dir_name, file_name)
       tf.io.gfile.copy(src_file_name, dst_file_name)
+
+
+def download_dir(
+  src_uri: Text,
+  dst_uri: Text,
+  ignore_subdirs: Optional[List[Text]] = None):
+
+  if ignore_subdirs is None:
+    ignore_subdirs = []
+  else:
+    ignore_subdirs = [os.path.join(src_uri, d) for d in ignore_subdirs]
+
+  bucket_name = src_uri.replace('gs://', '').split('/')[0]
+  prefix = '/'.join(src_uri.replace('gs://', '').split('/')[1:])
+
+  if not bucket_name or not src_uri.startswith('gs://'):
+    raise ValueError("src_uri must start with gs://<bucket_name>. Got {}".format(src_uri))
+
+  storage_client = storage.Client()
+  bucket = storage_client.get_bucket(bucket_name)
+  blobs = bucket.list_blobs(prefix=prefix)
+  for blob in blobs:
+      src_file_name = blob.name.split('/')[-1]
+      src_dir_name = os.path.join(
+        'gs://', bucket_name, '/'.join(blob.name.split('/')[:-1])
+      )
+      skip_dir = False
+
+      for ignore_subdir in ignore_subdirs:
+
+        if src_dir_name.startswith(ignore_subdir):
+          skip_dir = True
+          break
+
+      if skip_dir:
+        continue
+
+      dst_dir_name = os.path.join(
+        dst_uri, lstrip_dirs(src_dir_name, src_uri)
+      )
+      tf.io.gfile.makedirs(dst_dir_name)
+
+      dst_file_name = os.path.join(dst_dir_name, src_file_name)
+      blob.download_to_filename(dst_file_name)
+      print(blob.name, dst_file_name)
