@@ -79,7 +79,8 @@ def create_pipeline(
   schema_importer = ImporterNode(
     source_uri=os.path.join(run_root, 'schema'),
     artifact_type=standard_artifacts.Schema,
-    reimport=False
+    reimport=False,
+    instance_name='schema_importer'
   ).with_id('schema_importer')
 
   # Performs anomaly detection based on statistics and data schema.
@@ -96,7 +97,6 @@ def create_pipeline(
       examples=example_gen.outputs['examples'],
       schema=schema_importer.outputs['result'],
       preprocessing_fn='{}.preprocessing_fn'.format(pipeline_mod)
-      # module_file=pipeline_mod
   )
 
   # Uses user-provided Python function that implements a model using TF-Learn.
