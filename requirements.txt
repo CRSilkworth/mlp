@@ -4,5 +4,5 @@ tensorflow-text<2.4.0
 tensorflow-serving-api<2.4.0
 tensorflow-hub==0.10.0
 tf-models-official==0.0.3.dev1
-notebook==6.1.5
+notebook==6.4.1
 kfp==0.4.0
