@@ -78,6 +78,9 @@ class BertTokenizer(tf.keras.layers.Layer):
   @tf.function
   def tokens_and_spans(self, strings, begin_token='[CLS] '):
     # Define the tokenizers and tokenize the strings.
+    if type(strings) == list:
+      strings = tf.constant(strings)
+
     ws_tokens, ws_start, ws_end = self.whitespace_tokenizer.tokenize_with_offsets(begin_token + strings)
     wp_tokens, wp_start, wp_end = self.tokenizer.tokenize_with_offsets(ws_tokens)
 
@@ -145,9 +148,9 @@ class BertTokenizer(tf.keras.layers.Layer):
 
 
 class BertEncoderInputs(tf.keras.layers.Layer):
-  def call(self, tokens, training=False, **kwargs):
+  def call(self, tokens, training=False, int_dtype=tf.int64, **kwargs):
     input_mask = tf.equal(tokens, 0)
-    input_mask = tf.cast(tf.logical_not(input_mask), tf.int64)
+    input_mask = tf.cast(tf.logical_not(input_mask), int_dtype)
     input_type_ids = tf.zeros_like(tokens)
 
     encoder_inputs = {
