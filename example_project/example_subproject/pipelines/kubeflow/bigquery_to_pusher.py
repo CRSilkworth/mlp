@@ -31,7 +31,7 @@ _CATEGORICAL_FEATURE_KEYS = ['vendor']
 _NUMERICAL_FEATURE_KEYS = ['max_bottle_volume']
 _LABEL_KEY = 'category'
 
-trainer_fn = train.trainer_factory(
+run_fn = train.trainer_factory(
   categorical_feature_keys=_CATEGORICAL_FEATURE_KEYS,
   numerical_feature_keys=_NUMERICAL_FEATURE_KEYS,
   label_key=_LABEL_KEY,
@@ -74,11 +74,8 @@ if __name__ == "__main__":
   # Define the training/model parameters
   vc.hidden_layer_dims = [10]
   vc.batch_size = 32
-  vc.num_train_steps = 5000000
-  vc.num_eval_steps = 10000
-  vc.warmup_prop = 0.1
-  vc.cooldown_prop = 0.1
-  vc.warm_start_from = None
+  vc.steps_per_epoch = 200
+  vc.num_eval_steps = 20
   vc.save_summary_steps = 100
   vc.save_checkpoints_secs = 3600
   vc.learning_rate = 2e-5

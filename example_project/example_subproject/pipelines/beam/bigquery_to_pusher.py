@@ -11,6 +11,9 @@ from mlp.pipelines.bigquery_to_pusher import create_pipeline
 
 from __example_subproject__.preprocess import preprocess_factory
 from __example_subproject__.train import trainer_factory
+from __example_subproject__.schema import write_default_schema
+
+
 from mlp.utils.dirs import pipeline_dirs
 from mlp.utils.dirs import pipeline_var_names
 from mlp.utils.config import VarConfig
@@ -30,7 +33,7 @@ _CATEGORICAL_FEATURE_KEYS = ['vendor']
 _NUMERICAL_FEATURE_KEYS = ['max_bottle_volume']
 _LABEL_KEY = 'category'
 
-trainer_fn = trainer_factory(
+run_fn = trainer_factory(
   categorical_feature_keys=_CATEGORICAL_FEATURE_KEYS,
   numerical_feature_keys=_NUMERICAL_FEATURE_KEYS,
   label_key=_LABEL_KEY,
@@ -44,7 +47,8 @@ preprocessing_fn = preprocess_factory(
 
 if __name__ == "__main__":
   vc = VarConfig()
-  vc.gcp_project = '__gcp_project__'
+  # vc.gcp_project = '__gcp_project__'
+  vc.gcp_project = 'tripla-data'
   vc.mlp_project = _MLP_PROJECT
   vc.mlp_subproject = _MLP_SUBPROJECT
 
@@ -62,7 +66,7 @@ if __name__ == "__main__":
     SELECT
       item_description,
       MAX(vendor_name) AS vendor,
-      MAX(bottle_volume_ml) AS max_bottle_volume,
+      CAST(MAX(bottle_volume_ml) AS FLOAT64) AS max_bottle_volume,
       MAX(category_name) AS category
     FROM `bigquery-public-data.iowa_liquor_sales.sales`
     GROUP BY item_description
@@ -71,11 +75,9 @@ if __name__ == "__main__":
   # Define the training/model parameters
   vc.hidden_layer_dims = [10]
   vc.batch_size = 32
-  vc.num_train_steps = 1000
-  vc.num_eval_steps = 100
-  vc.warmup_prop = 0.1
-  vc.cooldown_prop = 0.1
-  vc.warm_start_from = None
+  vc.num_epochs = 2
+  vc.steps_per_epoch = 200
+  vc.num_eval_steps = 20
   vc.save_summary_steps = 100
   vc.save_checkpoints_secs = 3600
   vc.learning_rate = 2e-5
@@ -93,8 +95,15 @@ if __name__ == "__main__":
 
   vc.beam_pipeline_args = [
     '--project=' + vc.gcp_project,
-    '--temp_location=' + os.path.join('gs://__gcp_bucket__', 'tmp'),
+    # '--temp_location=' + os.path.join('gs://__gcp_bucket__', 'tmp'),
+    '--temp_location=' + os.path.join('gs://biwako-prd', 'tmp'),
   ]
+  vc.schema_uri = os.path.join(vc.run_root, 'schema', 'schema.pbtxt')
+  write_default_schema(
+    schema_uri=vc.schema_uri,
+    input_keys=vc.categorical_feature_keys + vc.numerical_feature_keys,
+    label_keys=[vc.label_key],
+  )
 
   vc.write(vc.vc_config_path)
   DAG = BeamDagRunner().run(

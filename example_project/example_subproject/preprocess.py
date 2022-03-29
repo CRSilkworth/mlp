@@ -107,11 +107,8 @@ def preprocess_factory(
     # NOTE: This won't be correct in the incremental case since it's only using
     # the new examples to get the mean and variance.
     for key in numerical_feature_keys:
-      outputs[_transformed_name(key)] = tf.expand_dims(
-        tft.scale_to_z_score(
-          _fill_in_missing(inputs[key])
-        ),
-        axis=1
+      outputs[_transformed_name(key)] = tft.scale_to_z_score(
+        _fill_in_missing(inputs[key])
       )
 
     return outputs
@@ -168,103 +165,43 @@ def _example_serving_receiver_fn(
       transformed_features, receiver_tensors)
 
 
-def _eval_input_receiver_fn(
-  tf_transform_output: tft.TFTransformOutput,
-  schema: schema_pb2.Schema,
-  label_key: Text
-  ) -> tfma.export.EvalInputReceiver:
-  """Build everything needed for the tf-model-analysis to run the model.
-
-  Parameters
-  ----------
-    tf_transform_output: A TFTransformOutput.
-    schema: the schema of the input data.
-
-  Returns
-  -------
-    EvalInputReceiver function, which contains:
-      - Tensorflow graph which parses raw untransformed features, applies the
-        tf-transform preprocessing operators.
-      - Set of raw, untransformed features.
-      - Label against which predictions will be compared.
-
-  """
-  # Notice that the inputs are raw features, not transformed features here.
-  raw_feature_spec = _get_raw_feature_spec(schema)
-
-  serialized_tf_example = tf.compat.v1.placeholder(
-      dtype=tf.string, shape=[None], name='input_example_tensor')
-
-  # Add a parse_example operator to the tensorflow graph, which will parse
-  # raw, untransformed, tf examples.
-  features = tf.io.parse_example(
-      serialized=serialized_tf_example, features=raw_feature_spec)
-
-  # Now that we have our raw examples, process them through the tf-transform
-  # function computed during the preprocessing step.
-  transformed_features = tf_transform_output.transform_raw_features(
-      features)
-
-  # The key name MUST be 'examples'.
-  receiver_tensors = {'examples': serialized_tf_example}
-
-  # NOTE: Model is driven by transformed features (since training works on the
-  # materialized output of TFT, but slicing will happen on raw features.
-  features.update(transformed_features)
-
-  return tfma.export.EvalInputReceiver(
-      features=features,
-      receiver_tensors=receiver_tensors,
-      labels=transformed_features[_transformed_name(label_key)])
-
-
 def get_input_fn(
-  filenames: List[Text],
+  file_names: List[Text],
   tf_transform_output: tft.TFTransformOutput,
-  batch_size: Optional[int] = 200
-  ) -> FunctionType:
+  batch_size: Optional[int] = 200,
+  label_key: Optional[Text] = 'category'
+  ) -> tf.data.Dataset:
   """Build the input funciton from the file_names and tf_transform.
 
   Parameters
   ----------
     filenames: List of CSV files to read data from.
     tf_transform_output: A TFTransformOutput.
-    batch_size: First dimension size of the Tensors returned by input_fn
+    batch_size: First dimension size of the Tensors returned by input_fn,
+    label_key: The key of what to split out as the label
 
   Returns
   -------
-    input_fn:
+    data: The tf.data.Dataset object
 
   """
-  def input_fn(
-    mode: tf.estimator.ModeKeys,
-    input_context: Optional[Any] = None
-    ) -> tf.data.TFRecordDataset:
-    """Generate features and labels for training or evaluation.
+  transformed_feature_spec = (
+      tf_transform_output.transformed_feature_spec().copy())
 
-    Parameters
-    ----------
-      filenames: [str] list of CSV files to read data from.
-      tf_transform_output: A TFTransformOutput.
-      batch_size: int First dimension size of the Tensors returned by input_fn
+  dataset = tf.data.experimental.make_batched_features_dataset(
+      file_names, batch_size, transformed_feature_spec, reader=_gzip_reader_fn)
 
-    Returns
-    -------
-      A (features, indices) tuple where features is a dictionary of
-        Tensors, and indices is a single Tensor of label indices.
+  @tf.function
+  def split_out_labels(in_ex):
+    ex = {}
+    ex.update(in_ex)
 
-    """
-    transformed_feature_spec = (
-        tf_transform_output.transformed_feature_spec().copy())
+    inputs = {}
+    for key in ex:
+      if key != _transformed_name(label_key):
+        inputs[key] = ex[key]
 
-    dataset = tf.data.experimental.make_batched_features_dataset(
-        filenames, batch_size, transformed_feature_spec, reader=_gzip_reader_fn)
+    return (inputs, ex[_transformed_name(label_key)])
 
-    if input_context:
-      dataset = dataset.shard(
-        input_context.num_input_pipelines,
-        input_context.input_pipeline_id
-      )
-
-    return dataset
-  return input_fn
+  dataset = dataset.map(split_out_labels)
+  return dataset

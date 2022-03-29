@@ -19,7 +19,7 @@ from mlp.kubeflow.pipeline_ops import set_gpu_limit
 
 _PIPELINE_TYPE = 'trainer_to_pusher'
 
-trainer_fn = full.trainer_fn
+run_fn = full.run_fn
 
 if __name__ == "__main__":
   prev_run_root = '/root/runs/tfx/intent_classifier-basic-bigquery_to_pusher/2020-11-16-01-29-07'
