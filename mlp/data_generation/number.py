@@ -1,7 +1,7 @@
-import data_generation.integer as integer_dg
+import mlp.data_generation.integer as integer_dg
 from typing import Optional
 import numpy as np
-import data_generation.maps as m
+import mlp.data_generation.maps as m
 import fractions
 
 def number_to_string(

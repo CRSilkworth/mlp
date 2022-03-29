@@ -2,33 +2,33 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 import datetime
-
-string_to_month = {}
-string_to_month['en'] = {
-  'january': 1,
-  'february': 2,
-  'march': 3,
-  'april': 4,
-  'may': 5,
-  'june': 6,
-  'july': 7,
-  'august': 8,
-  'september': 9,
-  'october': 10,
-  'november': 11,
-  'december': 12
-}
-
-month_to_string = {}
-month_to_string['ja'] = {1: 'ー月', 2: '二月', 3: '三月', 4: '四月', 5: '五月', 6: '六月', 7: '七月', 8: '八月', 9: '九月', 10: '十月', 11: '十一月', 12: '十二月'}
-month_to_string['zh_hans'] = month_to_string['ja']
-month_to_string['zh_hant'] = month_to_string['ja']
-month_to_string['ko'] = {1: '일', 2: '이', 3: '삼', 4: '사', 5: '오', 6: '육', 7: '칠', 8: '팔', 9: '구', 10: '십', 11: '십일', 12: '십이'}
-for lang in month_to_string:
-  string_to_month[lang] = {v: k for k, v in month_to_string[lang].items()}
-
-for lang in string_to_month:
-  month_to_string[lang] = {v: k for k, v in string_to_month[lang].items()}
+import mlp.data_generation.maps as maps_dg
+# string_to_month = {}
+# string_to_month['en'] = {
+#   'january': 1,
+#   'february': 2,
+#   'march': 3,
+#   'april': 4,
+#   'may': 5,
+#   'june': 6,
+#   'july': 7,
+#   'august': 8,
+#   'september': 9,
+#   'october': 10,
+#   'november': 11,
+#   'december': 12
+# }
+#
+# month_to_string = {}
+# month_to_string['ja'] = {1: 'ー月', 2: '二月', 3: '三月', 4: '四月', 5: '五月', 6: '六月', 7: '七月', 8: '八月', 9: '九月', 10: '十月', 11: '十一月', 12: '十二月'}
+# month_to_string['zh_hans'] = month_to_string['ja']
+# month_to_string['zh_hant'] = month_to_string['ja']
+# month_to_string['ko'] = {1: '일', 2: '이', 3: '삼', 4: '사', 5: '오', 6: '육', 7: '칠', 8: '팔', 9: '구', 10: '십', 11: '십일', 12: '십이'}
+# for lang in month_to_string:
+#   string_to_month[lang] = {v: k for k, v in month_to_string[lang].items()}
+#
+# for lang in string_to_month:
+#   month_to_string[lang] = {v: k for k, v in string_to_month[lang].items()}
 
 
 ja_era_to_offset = {'文亀': 1500, '永正': 1503, '大永': 1520, '享禄': 1527, '天文': 1531, '弘治': 1554, '永禄': 1557, '元亀': 1569, '天正': 1572, '文禄': 1591, '慶長': 1595, '元和': 1614, '寛永': 1623, '正保': 1643, '慶安': 1647, '承応': 1651, '明暦': 1654, '万治': 1657, '寛文': 1660, '延宝': 1672, '天和': 1680, '貞享': 1683, '元禄': 1687, '宝永': 1703, '正徳': 1710, '享保': 1715, '元文': 1735, '寛保': 1740, '延享': 1743, '寛延': 1747, '宝暦': 1750, '明和': 1763, '安永': 1771, '天明': 1780, '寛政': 1788, '享和': 1800, '文化': 1803, '文政': 1817, '天保': 1829, '弘化': 1843, '嘉永': 1847, '安政': 1853, '万延': 1859, '文久': 1860, '元治': 1863, '慶応': 1864, '明治': 1867, '大正': 1911, '昭和': 1925, '平成': 1988, '令和': 2018}
@@ -688,7 +688,7 @@ def word_dy_date_to_string(
       r['month'] = '0' + r['month'] if len(r['month']) < 2 else r['month']
       r['day'] = '0' + r['day'] if len(r['day']) < 2 else r['day']
 
-    r['month'] = month_to_string[r['language']][int(r['month'])]
+    r['month'] = maps_dg.month_to_string[r['language']][int(r['month'])]['word']
     r['month'] = r['month'].capitalize()
 
     if r['postfix']:
@@ -823,7 +823,7 @@ def d_word_y_date_to_string(
       r['month'] = '0' + r['month'] if len(r['month']) < 2 else r['month']
       r['day'] = '0' + r['day'] if len(r['day']) < 2 else r['day']
 
-    r['month'] = month_to_string[r['language']][int(r['month'])]
+    r['month'] = maps_dg.month_to_string[r['language']][int(r['month'])]['word']
     r['month'] = str(r['month'])
     r['month'] = r['month'].capitalize()
 

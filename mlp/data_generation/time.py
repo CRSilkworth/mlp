@@ -138,13 +138,13 @@ def _extract_digits(string, lang, digit_type, use_none=False):
   found = True
   while found:
     found = False
-    for word in m.string_to_integer[lang]:
-      if digit_type != m.string_to_integer[lang][word]['word_type']:
+    for word in m.word_to_digit[lang]:
+      if digit_type != m.word_to_digit[lang][word]['word_type']:
         continue
 
       if word == string[:len(word)]:
         string = string[len(word):]
-        num = m.string_to_integer[lang][word]['integer']
+        num = m.word_to_digit[lang][word]['integer']
         number = number + str(num)
         found = True
         break
@@ -255,10 +255,10 @@ def digit_hour_time_to_string(
     if h > 12:
       h = h - delta
     if h < 10 and z:
-      hour_str = m.integer_to_string[lang][0][dt]
+      hour_str = m.digit_to_word[lang][0][dt]
 
     for sub_str in str(h):
-      hour_str = hour_str + m.integer_to_string[lang][int(sub_str)][dt]
+      hour_str = hour_str + m.digit_to_word[lang][int(sub_str)][dt]
 
     if lang == 'en':
       hour_str = (hour_str + hw).strip()
@@ -398,20 +398,20 @@ def digit_hour_minute_time_to_string(
 
     hour_str = ''
     if h < 10 and z and dt not in ('word', 'alt_word_0'):
-      hour_str = m.integer_to_string[lang][0][dt]
+      hour_str = m.digit_to_word[lang][0][dt]
 
     for sub_str in str(h):
       if lang in ('ja', 'ko', 'zh_hant', 'zh_hans') or dt != 'word':
-        hour_str = hour_str + m.integer_to_string[lang][int(sub_str)][dt]
+        hour_str = hour_str + m.digit_to_word[lang][int(sub_str)][dt]
       else:
-        hour_str = hour_str + ' ' + m.integer_to_string[lang][int(sub_str)][dt]
+        hour_str = hour_str + ' ' + m.digit_to_word[lang][int(sub_str)][dt]
 
     minute_str = ''
     if min < 10 and z:
-      minute_str = m.integer_to_string[lang][0][dt]
+      minute_str = m.digit_to_word[lang][0][dt]
 
     for sub_str in str(min):
-      minute_str = minute_str + m.integer_to_string[lang][int(sub_str)][dt]
+      minute_str = minute_str + m.digit_to_word[lang][int(sub_str)][dt]
 
     if lang == 'en':
       minute_str = (minute_str + mw).strip()

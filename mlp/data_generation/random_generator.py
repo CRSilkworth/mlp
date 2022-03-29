@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict, Text
+from typing import Optional, List, Dict, Text, Any
 from google.cloud import storage
 
 
@@ -8,6 +8,7 @@ import mlp.data_generation.number as number_dg
 import mlp.data_generation.date as date_dg
 import mlp.data_generation.time as time_dg
 import mlp.data_generation.maps as maps_dg
+import mlp.data_generation.custom_data_type as custom_data_type_dg
 import pandas as pd
 import numpy as np
 import tempfile
@@ -15,13 +16,14 @@ import shutil
 import os
 import absl
 import datetime
+import itertools
 
 _MAX_INT = 9223372036854775807
 
 class RandomDataGenerator:
   def __init__(
     self,
-    random_value_parameters,
+    random_value_parameters: Optional[Dict[Text, Any]] = None,
     batch_size: Optional[int] = 1,
     batches_per_file: Optional[int] = 10,
     keep_local_data: Optional[bool] = False,
@@ -37,7 +39,7 @@ class RandomDataGenerator:
 
     **kwargs
   ):
-    self.random_value_parameters = random_value_parameters
+    self.random_value_parameters = random_value_parameters or {k: {} for k in range(4)}
     self.batch_size = batch_size
     self.random_seed = random_seed
     self.example_id_offset = example_id_offset
@@ -73,6 +75,7 @@ class RandomDataGenerator:
       for param_key in parameters['bounded']:
         upper_bound = parameters['bounded'][param_key]
         random_draw[param_key] = np.random.randint(upper_bound, size=batch_size)
+
     if 'normal' in parameters:
       for param_key in parameters['normal']:
         mu, sigma = parameters['normal'][param_key]
@@ -80,7 +83,11 @@ class RandomDataGenerator:
 
     if 'integer' in parameters:
       for param_key in parameters['integer']:
-        random_draw[param_key] = self._get_random_integer(batch_size)
+        random_draw[param_key] = self._get_random_integer(
+          batch_size,
+          min_int=parameters['integer'][param_key][0],
+          max_int=parameters['integer'][param_key][1]
+        )
 
     if 'number' in parameters:
       for param_key in parameters['number']:
@@ -123,14 +130,14 @@ class RandomDataGenerator:
 
     dates = []
     for r_num, r in enumerate(iterator):
-      if r['pattern'] == 'ja':
-        random_draw['language'][r_num] = 'ja'
+      if r['pattern'] == 'ja' and r['language'] != 'ja':
+        random_draw['pattern'][r_num] = 'ymd'
 
-      if r['pattern'] == 'ko':
-        random_draw['language'][r_num] = 'ko'
+      if r['pattern'] == 'ko' and r['language'] != 'ko':
+        random_draw['pattern'][r_num] = 'ymd'
       if r['pattern'] in ('d_word_y', 'word_dy'):
-        if r['postfix']:
-          random_draw['language'][r_num] = 'en'
+        if r['postfix'] and r['language'] != 'en':
+          random_draw['postfix'][r_num] = False
 
       if r['pattern'] == 'delta_day_of_week':
         nums = len(date_dg.next_words[r['next']][r['language']])
@@ -205,9 +212,9 @@ class RandomDataGenerator:
 
         random_draw['minute_word'][r_num] = r['minute_word']
 
-      if r['digit_type'] not in maps_dg.integer_to_string[r['language']][0]:
+      if r['digit_type'] not in maps_dg.digit_to_word[r['language']][0]:
         r['digit_type'] = np.random.choice(
-          list(maps_dg.integer_to_string[r['language']][0].keys())
+          list(maps_dg.digit_to_word[r['language']][0].keys())
         )
 
         random_draw['digit_type'][r_num] = r['digit_type']
@@ -300,7 +307,7 @@ class RandomDataGenerator:
 
     df['span'] = np.concatenate(spans, axis=0)
     df['float'] = random_draw['number']
-    df['user_language'] = random_draw['language']
+    df['language'] = random_draw['language']
     df['pattern'] = random_draw['pattern']
     return df
 
@@ -331,27 +338,9 @@ class RandomDataGenerator:
 
     df['span'] = np.concatenate(spans, axis=0)
     df['integer'] = random_draw['integer']
-    df['user_language'] = random_draw['language']
+    df['language'] = random_draw['language']
     df['pattern'] = random_draw['pattern']
     return df
-
-  def _convert_day_to_date(self, random_draw, prefix=''):
-
-    year = []
-    month = []
-    day = []
-
-    for delta in random_draw[prefix + 'delta_day']:
-      date = datetime.datetime(1970, 1, 1) + datetime.timedelta(delta)
-      year.append(date.year)
-      month.append(date.month)
-      day.append(date.day)
-
-    random_draw[prefix + 'year'] = np.array(year)
-    random_draw[prefix + 'month'] = np.array(month)
-    random_draw[prefix + 'day'] = np.array(day)
-
-    return random_draw
 
   def generate_date(self, df, random_value_parameters):
     df = df.copy(deep=True)
@@ -391,7 +380,7 @@ class RandomDataGenerator:
     df['cur_year'] = random_draw['cur_year']
     df['cur_month'] = random_draw['cur_month']
     df['cur_day'] = random_draw['cur_day']
-    df['user_language'] = random_draw['language']
+    df['language'] = random_draw['language']
     df['pattern'] = random_draw['pattern']
 
     return df
@@ -426,12 +415,163 @@ class RandomDataGenerator:
     df['hour'] = random_draw['hour']
     df['minute'] = random_draw['minute']
     df['second'] = random_draw['second']
-    df['user_language'] = random_draw['language']
+    df['language'] = random_draw['language']
     df['pattern'] = random_draw['pattern']
 
     return df
 
-  def _get_random_integer(self, num, decay=2.0):
+  def generate_custom_data_type(self, df, random_value_parameters):
+    df = df.copy(deep=True)
+    num_rows = len(df)
+    if not len(df):
+      df['span'] = []
+      df['custom_data_type'] = []
+      return df
+
+    num_tries = 0
+    failed = True
+    spans = []
+    while failed:
+      random_draw = self.get_random_draw(random_value_parameters, num_rows)
+      try:
+        span = custom_data_type_dg.custom_data_type_to_string(**random_draw)
+        failed = False
+        spans.append(span)
+
+      except Exception as e:
+        num_tries += 1
+
+        if num_tries > self.max_tries:
+          raise e
+
+    df['span'] = np.concatenate(spans, axis=0)
+    df['custom_data_type'] = random_draw['custom_data_type']
+    df['language'] = random_draw['language']
+    df['pattern'] = random_draw['pattern']
+    return df
+
+  def generate_all_custom_data_type(self, random_value_parameters):
+    spans = []
+    custom_data_type = []
+    language = []
+    row_nums = []
+    for row_num, random_draw in enumerate(named_product(**random_value_parameters['categorical'])):
+      span = custom_data_type_dg.custom_data_type_to_string(**random_draw)
+      custom_data_type.append(random_draw['custom_data_type'])
+      language.append(random_draw['language'])
+      spans.append(np.array(span))
+      row_nums.append(row_num)
+
+    df = pd.DataFrame(index=row_nums)
+    df['span'] = np.concatenate(spans, axis=0)
+    df['custom_data_type'] = np.array(custom_data_type)
+    df['language'] = np.array(language)
+
+    return df
+
+  def generate_number_strings(self, num_rows, random_value_parameters):
+    num_tries = 0
+    failed = True
+    spans = []
+    while failed:
+      random_draw = self.get_random_draw(random_value_parameters, num_rows)
+      random_draw = self._correct_number_data(random_draw)
+      try:
+        span = number_dg.number_to_string(**random_draw)
+        failed = False
+        spans.append(span)
+
+      except Exception as e:
+        num_tries += 1
+
+        if num_tries > self.max_tries:
+          raise e
+
+    spans = np.concatenate(spans, axis=0)
+    return spans
+
+  def generate_integer_strings(self, num_rows, random_value_parameters):
+    num_tries = 0
+    failed = True
+    spans = []
+    while failed:
+      random_draw = self.get_random_draw(random_value_parameters, num_rows)
+      random_draw = self._correct_integer_data(random_draw)
+      try:
+        span = integer_dg.integer_to_string(**random_draw)
+        failed = False
+        spans.append(span)
+
+      except Exception as e:
+        num_tries += 1
+
+        if num_tries > self.max_tries:
+          raise e
+
+    spans = np.concatenate(spans, axis=0)
+    return spans
+
+  def generate_date_strings(self, num_rows, random_value_parameters):
+    num_tries = 0
+    failed = True
+    spans = []
+    while failed:
+      random_draw = self.get_random_draw(random_value_parameters, num_rows)
+      random_draw = self._correct_date_data(random_draw)
+
+      try:
+        span = date_dg.date_to_string(**random_draw)
+        failed = False
+        spans.append(span)
+
+      except Exception as e:
+        num_tries += 1
+
+        if num_tries > self.max_tries:
+          raise e
+
+    spans = np.concatenate(spans, axis=0)
+    return spans
+
+  def generate_time_strings(self, num_rows, random_value_parameters):
+    num_tries = 0
+    failed = True
+    spans = []
+    while failed:
+      random_draw = self.get_random_draw(random_value_parameters, num_rows)
+      random_draw = self._correct_time_data(random_draw)
+      try:
+        span = time_dg.time_to_string(**random_draw)
+        failed = False
+        spans.append(span)
+      except Exception as e:
+        num_tries += 1
+
+        if num_tries > self.max_tries:
+          raise e
+
+    spans = np.concatenate(spans, axis=0)
+    return spans
+
+  def _convert_day_to_date(self, random_draw, prefix=''):
+
+    year = []
+    month = []
+    day = []
+
+    for delta in random_draw[prefix + 'delta_day']:
+      date = datetime.datetime(1970, 1, 1) + datetime.timedelta(delta)
+      year.append(date.year)
+      month.append(date.month)
+      day.append(date.day)
+
+    random_draw[prefix + 'year'] = np.array(year)
+    random_draw[prefix + 'month'] = np.array(month)
+    random_draw[prefix + 'day'] = np.array(day)
+
+    return random_draw
+
+  def _get_random_integer(self, num, decay=2.0, min_int=-_MAX_INT, max_int=_MAX_INT):
     primitives = np.array(
       [None] + list(range(20)) + [10**i for i in range(2, 10)]
     )
@@ -459,9 +599,11 @@ class RandomDataGenerator:
         else:
           integer = integer + draw
 
-        if integer >= _MAX_INT:
+        if integer >= max_int or integer <= min_int:
           integer = prev_integer
-          break
+
+          if integer is not None:
+            break
 
       integers.append(prev_integer)
     return np.array(integers)
@@ -483,3 +625,16 @@ def upload_to_bucket(bucket_name, blob_path, local_path):
     bucket = storage.Client().bucket(bucket_name)
     blob = bucket.blob(blob_path)
     blob.upload_from_filename(local_path)
+
+
+def named_product(**kwargs):
+  keys = []
+  values = []
+  for key in kwargs:
+    keys.append(key)
+    values.append(kwargs[key])
+  for picked_values in itertools.product(*values):
+    r_dict = dict(zip(keys, picked_values))
+    for key in r_dict:
+      r_dict[key] = np.array([r_dict[key]])
+    yield r_dict

@@ -253,7 +253,7 @@ def int_to_txt(i, lang, word_type='word'):
     if i < 0:
         return _join('negative', _int_to_txt_pos(-i, lang, word_type))
     if i == 0:
-        return m.word_to_digit[lang][0]['integer']
+        return m.digit_to_word[lang][0][word_type]
     return _int_to_txt_pos(i, lang, word_type)
 
 
@@ -401,9 +401,11 @@ def cap_word_integer_to_string(
   string = []
   for i, lang in zip(integer, language):
     s = int_to_txt(i, lang)
+    s = s.capitalize()
     string.append(s)
   string = np.array(string)
-  return np.char.capitalize(string)
+  return string
+  # return np.char.capitalize(string)
 
 
 def digit_word_string_to_integer(
