@@ -107,3 +107,4 @@ Thumbs.db
 !room_tag_predictor/conv/data/raw/*csv
 !data_pipeline/definition_jsons/*json
 !requirements.txt
+!data_generation
