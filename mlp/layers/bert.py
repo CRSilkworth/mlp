@@ -5,6 +5,7 @@ import os
 from typing import Optional, List, Text, Dict, Any
 from tensorflow.python.lib.io import file_io
 from official.nlp import bert_modeling as modeling
+from tensorflow_text.python.ops.bert_tokenizer import BasicTokenizer
 
 
 class BertTokenizer(tf.keras.layers.Layer):
@@ -12,19 +13,21 @@ class BertTokenizer(tf.keras.layers.Layer):
     self,
     bert_dir: Text,
     max_seq_length: Optional[int] = 128,
-    token_out_type=tf.int64,
+    token_out_type: Optional[tf.DType] = tf.int64,
+    basic_tokenizer_class=BasicTokenizer,
     **kwargs
+
     ):
     super(BertTokenizer, self).__init__(**kwargs)
 
     with tf.init_scope():
       self.vocab_file_path = os.path.join(bert_dir, 'vocab.txt')
       with file_io.FileIO(self.vocab_file_path, mode='r') as vocab_file:
-        vocab = vocab_file.read().split()
+        self.vocab = vocab_file.read().split()
 
       init = tf.lookup.KeyValueTensorInitializer(
-        vocab,
-        tf.range(tf.size(vocab, out_type=tf.int64), dtype=tf.int64),
+        self.vocab,
+        tf.range(tf.size(self.vocab, out_type=tf.int64), dtype=tf.int64),
         key_dtype=tf.string,
         value_dtype=tf.int64
       )
@@ -32,8 +35,7 @@ class BertTokenizer(tf.keras.layers.Layer):
       self.vocab_table = tf.lookup.StaticVocabularyTable(
         init, 1, lookup_key_dtype=tf.string
       )
-
-      self.whitespace_tokenizer = tf_text.WhitespaceTokenizer()
+      self.basic_tokenizer = basic_tokenizer_class()
       self.tokenizer = tf_text.WordpieceTokenizer(
         self.vocab_table,
         token_out_type=token_out_type
@@ -67,7 +69,6 @@ class BertTokenizer(tf.keras.layers.Layer):
     # input_shape = strings.shape
     # output_shape = input_shape.concatenate(
     #   tf.TensorShape([self.max_seq_length]))
-
     tokens_dict = self.tokens_and_spans(strings, begin_token)
 
     # Collapse the ragged tensor dimension by one convert to a regular tensor.
@@ -81,7 +82,7 @@ class BertTokenizer(tf.keras.layers.Layer):
     if type(strings) == list:
       strings = tf.constant(strings)
 
-    ws_tokens, ws_start, ws_end = self.whitespace_tokenizer.tokenize_with_offsets(begin_token + strings)
+    ws_tokens, ws_start, ws_end = self.basic_tokenizer.tokenize_with_offsets(strings)
     wp_tokens, wp_start, wp_end = self.tokenizer.tokenize_with_offsets(ws_tokens)
 
     return {
@@ -145,6 +146,9 @@ class BertTokenizer(tf.keras.layers.Layer):
     return tf.RaggedTensor.from_nested_row_lengths(
       rt.flat_values,
       rt.nested_row_lengths()[:axis] + (new_row_lengths,))
+
+  def ids_to_strings(self, ids):
+    return tf.gather(self.vocab, ids)
 
 
 class BertEncoderInputs(tf.keras.layers.Layer):
