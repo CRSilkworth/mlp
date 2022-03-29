@@ -63,7 +63,7 @@ class IndexedDense(tf.keras.layers.Layer):
 
   def call(self, inputs):
     input, index = inputs
-
+    # TODO: Look into changing this to gather rather than gather_nd
     # Pull out the weight and bias slices from the full tensors.
     weights = tf.gather_nd(
       self.ws,
