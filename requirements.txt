@@ -6,3 +6,4 @@ tensorflow-hub>=0.9.0
 tf-models-official==0.0.3.dev1
 notebook==6.1.5
 kfp<1.4.0
+jaconv==0.3
