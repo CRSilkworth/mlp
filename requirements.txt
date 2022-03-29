@@ -4,6 +4,11 @@ tensorflow-text>=2.3.0,<2.4.0
 tensorflow-serving-api>=2.3.0,<2.4.0
 tensorflow-hub>=0.9.0
 tf-models-official==0.0.3.dev1
+<<<<<<< HEAD
 notebook==6.1.5
 kfp<1.4.0
 jaconv==0.3
+=======
+notebook==6.4.1
+kfp==0.4.0
+>>>>>>> 1f160af51f78eae46725192229a4cf4f044b55c1
