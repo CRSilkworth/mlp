@@ -8,7 +8,7 @@ import os
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tfx.components.trainer import executor as trainer_executor
 from official.nlp import bert_modeling as modeling
-from mlp.intent_classifier.common import train
+from __example_subproject__ import train
 
 
 class ModelTest(tf.test.TestCase):

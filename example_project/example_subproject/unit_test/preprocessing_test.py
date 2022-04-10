@@ -3,7 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
-from mlp.intent_classifier.common import preprocess
+from __example_subproject__ import preprocess
 
 
 class PreprocessingTest(tf.test.TestCase):
