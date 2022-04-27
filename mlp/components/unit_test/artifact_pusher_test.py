@@ -29,11 +29,11 @@ class ComponentTest(tf.test.TestCase):
     )
     self.assertEqual(
       'Schema',
-      component_instance.inputs.artifact.type_name
+      component_instance.inputs['artifact'].type_name
     )
     self.assertEqual(
       'Schema',
-      component_instance.outputs.pushed_artifact.type_name
+      component_instance.outputs['pushed_artifact'].type_name
     )
 
   def testConstructModel(self):
@@ -50,11 +50,11 @@ class ComponentTest(tf.test.TestCase):
     )
     self.assertEqual(
       'Model',
-      component_instance.inputs.artifact.type_name
+      component_instance.inputs['artifact'].type_name
     )
     self.assertEqual(
       'Model',
-      component_instance.outputs.pushed_artifact.type_name
+      component_instance.outputs['pushed_artifact'].type_name
     )
 
   def testConstructTransformGraph(self):
@@ -71,11 +71,11 @@ class ComponentTest(tf.test.TestCase):
     )
     self.assertEqual(
       'TransformGraph',
-      component_instance.inputs.artifact.type_name
+      component_instance.inputs['artifact'].type_name
     )
     self.assertEqual(
       'TransformGraph',
-      component_instance.outputs.pushed_artifact.type_name
+      component_instance.outputs['pushed_artifact'].type_name
     )
 
   def testConstructExamples(self):
@@ -92,11 +92,11 @@ class ComponentTest(tf.test.TestCase):
     )
     self.assertEqual(
       'Examples',
-      component_instance.inputs.artifact.type_name
+      component_instance.inputs['artifact'].type_name
     )
     self.assertEqual(
       'Examples',
-      component_instance.outputs.pushed_artifact.type_name
+      component_instance.outputs['pushed_artifact'].type_name
     )
 
   def testDo(self):
