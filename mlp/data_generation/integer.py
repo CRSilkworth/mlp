@@ -320,7 +320,8 @@ def _int_to_txt_pos(i, lang, word_type='word'):
       last_number = digit
       last_name = word
     return _divide(i, last_number, last_name, lang, word_type)
-
+  else:
+    raise ValueError('Unsupported language {}'.format(lang))
 
 def word_integer_to_string(
   integer: np.ndarray,
