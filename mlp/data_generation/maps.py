@@ -416,7 +416,7 @@ month_words['zh_hant'] = month_words['ja']
 
 
 for month_num in range(1, 13, 1):
-  for lang in ['ja', 'zh_hans', 'zh_hant']:
+  for lang in ['ja', 'zh_hans', 'zh_hant', 'ko']:
     for word_type in ['word', 'digit', 'full_width']:
       month_to_string[lang][month_num]['word'] = digit_to_word[lang][month_num][word_type] + month_words[lang]['word']
 
