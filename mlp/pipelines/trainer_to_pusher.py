@@ -4,27 +4,21 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from typing import Text, List, Dict, Optional, Any
+from mlp.components.always_pusher import AlwaysPusher
 
+from tfx.components import ImporterNode
+from tfx.components import Trainer
+from tfx.components.trainer.executor import GenericExecutor
+from tfx.dsl.components.base import executor_spec
+from tfx.proto import trainer_pb2
+from tfx.proto import pusher_pb2
+from tfx.types import standard_artifacts
+from tfx.types import artifact
+from tfx.types import artifact_utils
 from tfx.orchestration import pipeline
 from tfx.orchestration import metadata
 
-from tfx.components import ImporterNode
-from tfx.components import Transform
-from tfx.components import Trainer
-from tfx.components import BigQueryExampleGen
-from tfx.dsl.components.base import executor_spec
-from tfx.components.trainer.executor import GenericExecutor
-from mlp.components.always_pusher import AlwaysPusher
-
-from tfx.proto import trainer_pb2
-from tfx.proto import example_gen_pb2
-from tfx.proto import pusher_pb2
-from tfx.types import standard_artifacts
-
-from tfx.extensions.google_cloud_ai_platform.trainer import executor as ai_platform_trainer_executor
-from tfx.types import artifact
-from tfx.types import artifact_utils
+from typing import Text, List, Dict, Optional, Any
 
 import os
 
@@ -38,11 +32,28 @@ def create_pipeline(
   examples_uri: Text,
   model_uri: Optional[Text] = None,
   beam_pipeline_args: Optional[List[Text]] = None,
-  ai_platform_training_args: Optional[Dict[Text, Text]] = None,
   metadata_path: Optional[Text] = None,
   custom_config: Optional[Dict[Text, Any]] = None
 ) -> pipeline.Pipeline:
-  """Implements the incremental pipeline.."""
+  """Implement the incremental pipeline from the Trainer component onward.
+
+  Parameters
+  ----------
+  run_root: Path to the root directory to store all the output from the pipeline's run.
+  pipeline_name: The name of the pipeline.
+  pipeline_mod: The module of the pipeline (e.g. mod.submod.pipeline)
+  schema_uri: The uri to the schema to import for this pipeline.
+  transform_graph_uri: The uri to the transform graph to transform the raw data.
+  transform_graph_uri: The uri to the examples to train on.
+  beam_pipeline_args: The beam arguments for the entire pipeline.
+  metadata_path: Where to store the metadata db.
+  custom config: Any additional configuration to be passed to the Trainer.
+
+  Returns
+  -------
+  pipeline: The tfx pipeline to be sent to beam/airflow/kubeflow etc.
+
+  """
   components = []
   schema_importer = ImporterNode(
     instance_name='schema_importer',

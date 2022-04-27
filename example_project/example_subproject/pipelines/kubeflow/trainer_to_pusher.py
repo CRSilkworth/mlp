@@ -5,13 +5,12 @@ from __future__ import print_function
 
 import os
 
-from __example_subproject__.pipelines.defs.trainer_to_pusher import create_pipeline
+from mlp.pipelines.trainer_to_pusher import create_pipeline
 from tfx.orchestration.kubeflow import kubeflow_dag_runner
 
 from __example_subproject__ import train
 import __example_subproject__.pipelines.beam.bigquery_to_pusher as full
 
-from mlp.utils.dir import pipeline_dirs
 from mlp.utils.resolvers import latest_run_root
 from mlp.utils.resolvers import latest_artifact_path
 from mlp.utils.config import VarConfig
@@ -20,7 +19,7 @@ from mlp.kubeflow.pipeline_ops import set_gpu_limit
 
 _PIPELINE_TYPE = 'trainer_to_pusher'
 
-trainer_fn = full.trainer_fn
+run_fn = full.run_fn
 
 if __name__ == "__main__":
   prev_run_root = '/root/runs/tfx/intent_classifier-basic-bigquery_to_pusher/2020-11-16-01-29-07'
@@ -72,7 +71,6 @@ if __name__ == "__main__":
       schema_uri=vc.schema_uri,
       transform_graph_uri=vc.transform_graph_uri,
       examples_uri=vc.examples_uri,
-      model_uri=vc.model_uri,
       beam_pipeline_args=vc.beam_pipeline_args,
       metadata_path=vc.metadata_path,
       custom_config=vc.get_vars()

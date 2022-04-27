@@ -1,8 +1,8 @@
-tfx>=0.21.0,<0.24.0dev
-tensorflow<2.4.0
-tensorflow-text<2.4.0
-tensorflow-serving-api<2.4.0
-tensorflow-hub==0.10.0
+tfx>0.22,<0.27.0
+tensorflow>=2.3.0,<2.4.0
+tensorflow-text>=2.3.0,<2.4.0
+tensorflow-serving-api>=2.3.0,<2.4.0
+tensorflow-hub>=0.9.0
 tf-models-official==0.0.3.dev1
-notebook==6.4.10
-kfp==0.4.0
+kfp<1.4.0
+notebook==6.4.1

@@ -25,10 +25,9 @@ from absl import logging
 
 from google.protobuf import json_format
 from tfx import types
-from tfx.components.base import base_component
-from tfx.components.base import base_executor
-from tfx.components.base import executor_spec
-from tfx.components.pusher import executor
+from tfx.dsl.components.base import base_component
+from tfx.dsl.components.base import base_executor
+from tfx.dsl.components.base import executor_spec
 from tfx.utils import io_utils
 from tfx.utils import path_utils
 from tfx.proto import pusher_pb2
@@ -134,8 +133,6 @@ class AlwaysPusher(base_component.BaseComponent):
       custom_config: Optional[Dict[Text, Any]] = None,
       custom_executor_spec: Optional[executor_spec.ExecutorSpec] = None,
       output: Optional[types.Channel] = None,
-      instance_name: Optional[Text] = None,
-      enable_cache: Optional[bool] = None
     ):
     """Construct a Pusher component.
 
@@ -156,9 +153,6 @@ class AlwaysPusher(base_component.BaseComponent):
         result of push.
       instance_name: Optional unique instance name. Necessary if multiple Pusher
         components are declared in the same pipeline.
-      enable_cache: Optional boolean to indicate if cache is enabled for the
-        Pusher component. If not specified, defaults to the value
-        specified for pipeline's enable_cache parameter.
     """
     output = output or types.Channel(
         type=standard_artifacts.PushedModel,
@@ -177,5 +171,4 @@ class AlwaysPusher(base_component.BaseComponent):
     super(AlwaysPusher, self).__init__(
         spec=spec,
         custom_executor_spec=custom_executor_spec,
-        instance_name=instance_name
       )

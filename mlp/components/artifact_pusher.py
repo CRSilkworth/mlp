@@ -10,11 +10,11 @@ import os
 import tensorflow as tf
 
 from tfx import types
-from tfx.components.base import base_component
+from tfx.dsl.components.base import base_component
 from tfx.types.component_spec import ChannelParameter
 from tfx.types.component_spec import ComponentSpec
 from tfx.types.component_spec import ExecutionParameter
-from tfx.components.base import executor_spec
+from tfx.dsl.components.base import executor_spec
 from tfx.proto import pusher_pb2
 from tfx.types import standard_artifacts
 from tfx.components.pusher.executor import Executor
@@ -111,7 +111,6 @@ def pusher_component_factory(artifact_type):
         artifact: types.Channel,
         push_destination: Union[pusher_pb2.PushDestination, Dict[Text, Any]],
         properties: Optional[Dict[Text, Union[Text, int]]] = None,
-        instance_name: Optional[Text] = None,
         enable_cache: Optional[bool] = None
       ):
       """Construct a Pusher component.
@@ -143,8 +142,7 @@ def pusher_component_factory(artifact_type):
         pushed_artifact=output
       )
       super(ArtifactPusher, self).__init__(
-        spec=spec,
-        instance_name=instance_name)
+        spec=spec)
   return ArtifactPusher
 
 

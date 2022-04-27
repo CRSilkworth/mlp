@@ -1,13 +1,4 @@
-FROM tensorflow/tfx:0.23.1
-
-WORKDIR /mlp
-COPY ./mlp ./mlp
-COPY requirements.txt ./
-COPY version.py ./
-COPY setup.py ./
-COPY proto_gen.py ./
-COPY README.md ./
-RUN pip3 install .
+FROM tensorflow/tfx:0.26.3
 
 ENV CUDA_VERSION 10.1.243
 ENV CUDA_PKG_VERSION 10-1=$CUDA_VERSION-1
@@ -38,3 +29,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
   apt-get update && apt-get install -y --no-install-recommends libcudnn7=$CUDNN_VERSION-1+cuda10.1 && \
   apt-mark hold libcudnn7 && \
   rm -rf /var/lib/apt/lists/*
+
+
+WORKDIR /mlp
+COPY ./mlp ./mlp
+COPY requirements.txt ./
+COPY version.py ./
+COPY setup.py ./
+COPY proto_gen.py ./
+COPY README.md ./
+RUN pip3 install .
+ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:/usr/local/cuda/lib64

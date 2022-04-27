@@ -6,7 +6,7 @@ from __future__ import print_function
 import datetime
 import os
 
-from __example_subproject__.pipelines.defs.bigquery_to_pusher import create_pipeline
+from mlp.pipelines.bigquery_to_pusher import create_pipeline
 from tfx.orchestration.kubeflow import kubeflow_dag_runner
 
 from __example_subproject__ import preprocess
@@ -31,7 +31,7 @@ _CATEGORICAL_FEATURE_KEYS = ['vendor']
 _NUMERICAL_FEATURE_KEYS = ['max_bottle_volume']
 _LABEL_KEY = 'category'
 
-trainer_fn = train.trainer_factory(
+run_fn = train.trainer_factory(
   categorical_feature_keys=_CATEGORICAL_FEATURE_KEYS,
   numerical_feature_keys=_NUMERICAL_FEATURE_KEYS,
   label_key=_LABEL_KEY,
@@ -74,11 +74,8 @@ if __name__ == "__main__":
   # Define the training/model parameters
   vc.hidden_layer_dims = [10]
   vc.batch_size = 32
-  vc.num_train_steps = 5000000
-  vc.num_eval_steps = 10000
-  vc.warmup_prop = 0.1
-  vc.cooldown_prop = 0.1
-  vc.warm_start_from = None
+  vc.steps_per_epoch = 200
+  vc.num_eval_steps = 20
   vc.save_summary_steps = 100
   vc.save_checkpoints_secs = 3600
   vc.learning_rate = 2e-5
@@ -96,15 +93,25 @@ if __name__ == "__main__":
 
   # If running with dataflow
   vc.beam_pipeline_args = [
-    # If you want to use DataFlow, ensure that the service account
-    # <kf-deployment-name>-user@<gcp_project>.iam.gserviceaccount.com has the
-    # ServiceAccount/ServiceAccountUser role.
-    # '--runner=DataflowRunner',
     '--experiments=shuffle_mode=auto',
     '--project=' + vc.gcp_project,
     '--temp_location=' + os.path.join(vc.run_dir, 'tmp'),
     '--region=' + vc.gcp_region,
-    '--disk_size_gb=50',
+    # If you want to use DataFlow, ensure that the service account
+    # <kf-deployment-name>-user@<gcp_project>.iam.gserviceaccount.com has the
+    # ServiceAccount/ServiceAccountUser role. Then uncomment everything below.
+    # '--runner=DataflowRunner',
+    # # Need to explicitly pass the image, otherwise dataflow doesn't work for
+    # # transform. It can't find any usercode (e.g. mlp)
+    # '--experiment=use_runner_v2',
+    # '--worker_harness_container_image=gcr.io/{gcp_project}/{mlp_project}:{version}'.format(
+    #   gcp_project=vc.gcp_project,
+    #   mlp_project=vc.mlp_project,
+    #   version=vc.version
+    # ),
+    # # Need 50GB otherwise dataflow hangs without any errors
+    # '--disk_size_gb=50',
+    # '--machine_type=n1-standard-4',
   ]
 
   pipeline_op_funcs = kubeflow_dag_runner.get_default_pipeline_operator_funcs()

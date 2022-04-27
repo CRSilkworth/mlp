@@ -6,16 +6,18 @@ from __future__ import print_function
 
 import json
 import os
-from typing import Any, Dict, Optional, Text, Union, List, Set, Sequence, Mapping
+from typing import Any, Dict, Optional, Text, Union, List, Set, Sequence, Mapping, Callable
+from tensorflow_metadata.proto.v0 import schema_pb2
 
 import absl
 
 import tensorflow as tf
 import apache_beam as beam
+import tensorflow_data_validation as tfdv
 
 from tfx import types
-from tfx.components.base import base_component
-from tfx.components.base import executor_spec
+from tfx.dsl.components.base import base_component
+from tfx.dsl.components.base import executor_spec
 from tfx.components.transform import executor
 from tfx.orchestration import data_types
 from tfx.types import standard_artifacts
@@ -24,7 +26,7 @@ from tfx.types.standard_component_specs import TransformSpec
 from tfx.types.component_spec import ComponentSpec
 from tfx.types.component_spec import ChannelParameter
 from tfx.types.component_spec import ExecutionParameter
-from tfx.components.transform import stats_options as transform_stats_options
+from tfx.components.transform import stats_options_util
 from tfx.components.transform import labels
 from tfx.types import artifact
 from tfx.types import artifact_utils
@@ -74,6 +76,38 @@ _TELEMETRY_DESCRIPTORS = [_TRANSFORM_COMPONENT_DESCRIPTOR]
 # TODO(b/37788560): Increase this max, based on results of experimentation with
 # many non-packable analyzers on our benchmarks.
 _MAX_ESTIMATED_STAGES_COUNT = 20000
+
+
+def _InvokeStatsOptionsUpdaterFn(
+    stats_options_updater_fn: Callable[
+        [stats_options_util.StatsType, tfdv.StatsOptions], tfdv.StatsOptions],
+    stats_type: stats_options_util.StatsType,
+    schema: Optional[schema_pb2.Schema] = None,
+    asset_map: Optional[Dict[Text, Text]] = None,
+    transform_output_path: Optional[Text] = None) -> tfdv.StatsOptions:
+  """Invokes the provided stats_options_updater_fn.
+
+  Args:
+    stats_options_updater_fn: The function to call.
+    stats_type: The stats_type use in the function call.
+    schema: The input schema to use in the function call.
+    asset_map: A dictionary containing key to filename mappings.
+    transform_output_path: The path to the transform output.
+
+  Returns:
+    The updated tfdv.StatsOptions.
+  """
+  options = {}
+  if schema is not None:
+    schema_copy = schema_pb2.Schema()
+    schema_copy.CopyFrom(schema)
+    options['schema'] = schema_copy
+  if asset_map is not None:
+    asset_path = os.path.join(transform_output_path, 'transform_fn',
+                              tf.saved_model.ASSETS_DIRECTORY)
+    vocab_paths = {k: os.path.join(asset_path, v) for k, v in asset_map.items()}
+    options['vocab_paths'] = vocab_paths
+  return stats_options_updater_fn(stats_type, tfdv.StatsOptions(**options))
 
 
 class TransformWithGraphSpec(ComponentSpec):
@@ -270,6 +304,7 @@ class TransformWithGraphExecutor(executor.Executor):
         outputs, labels.TRANSFORM_METADATA_OUTPUT_PATH_LABEL)
     raw_examples_data_format = value_utils.GetSoleValue(
         inputs, labels.EXAMPLES_DATA_FORMAT_LABEL)
+    stats_options_updater_fn = self._GetStatsOptionsUpdaterFn(inputs)
     schema = value_utils.GetSoleValue(inputs, labels.SCHEMA_PATH_LABEL)
     input_dataset_metadata = self._ReadMetadata(raw_examples_data_format,
                                                 schema)
@@ -364,7 +399,8 @@ class TransformWithGraphExecutor(executor.Executor):
     materialization_format = (
         transform_paths_file_formats[-1] if materialize_output_paths else None)
     self._RunBeamImpl(analyze_data_list, transform_data_list,
-                      transform_graph_uri, input_dataset_metadata,
+                      transform_graph_uri, stats_options_updater_fn,
+                      input_dataset_metadata,
                       transform_output_path, raw_examples_data_format,
                       temp_path,
                       compute_statistics, per_set_stats_output_paths,
@@ -373,6 +409,9 @@ class TransformWithGraphExecutor(executor.Executor):
 
   def _RunBeamImpl(self, analyze_data_list: List[executor._Dataset],
                    transform_data_list: List[executor._Dataset], transform_graph_uri: Text,
+                   stats_options_updater_fn: Callable[
+                       [stats_options_util.StatsType, tfdv.StatsOptions],
+                       tfdv.StatsOptions],
                    input_dataset_metadata: dataset_metadata.DatasetMetadata,
                    transform_output_path: Text, raw_examples_data_format: int,
                    temp_path: Text, compute_statistics: bool,
@@ -432,78 +471,11 @@ class TransformWithGraphExecutor(executor.Executor):
 
     with self._CreatePipeline(transform_output_path) as pipeline:
       with tft_beam.Context(
-          temp_dir=temp_path,
-          desired_batch_size=desired_batch_size,
-          passthrough_keys=self._GetTFXIOPassthroughKeys(),
-          use_deep_copy_optimization=True,
-          use_tfxio=True):
-        # pylint: disable=expression-not-assigned
-        # pylint: disable=no-value-for-parameter
-        # _ = (
-        #     pipeline
-        #     | 'IncrementPipelineMetrics' >> self._IncrementPipelineMetrics(
-        #         len(unprojected_typespecs), len(analyze_input_columns),
-        #         len(transform_input_columns), analyze_paths_count))
-        #
-        # # (new_analyze_data_dict, input_cache) = (
-        # #     pipeline
-        # #     | 'OptimizeRun' >> self._OptimizeRun(
-        # #         input_cache_dir, output_cache_dir, analyze_data_list,
-        # #         unprojected_typespecs, preprocessing_fn,
-        # #         self._GetCacheSource()))
-        #
-        # # if input_cache:
-        # #   absl.logging.debug('Analyzing data with cache.')
-        #
-        # full_analyze_dataset_keys_list = [
-        #     dataset.dataset_key for dataset in analyze_data_list
-        # ]
-        #
-        # # Removing unneeded datasets if they won't be needed for statistics or
-        # # materialization.
-        # # if materialization_format is None and not compute_statistics:
-        # #   if None in new_analyze_data_dict.values():
-        # #     absl.logging.debug(
-        # #         'Not reading the following datasets due to cache: %s', [
-        # #             dataset.file_pattern
-        # #             for dataset in analyze_data_list
-        # #             if new_analyze_data_dict[dataset.dataset_key] is None
-        # #         ])
-        # #   analyze_data_list = [
-        # #       d for d in new_analyze_data_dict.values() if d is not None
-        # #   ]
-        #
-        # input_analysis_data = {}
-        # for dataset in analyze_data_list:
-        #   infix = 'AnalysisIndex{}'.format(dataset.index)
-        #   dataset.standardized = (
-        #       pipeline
-        #       | 'TFXIOReadAndDecode[{}]'.format(infix) >>
-        #       dataset.tfxio.BeamSource(desired_batch_size))
-        #
-        #   input_analysis_data[dataset.dataset_key] = dataset.standardized
-        # # input_analysis_data = {}
-        # # for key, dataset in new_analyze_data_dict.items():
-        # #   input_analysis_data[key] = (
-        # #       None if dataset is None else dataset.standardized)
-        #
-        # # transform_fn, cache_output = (
-        # #     (input_analysis_data, input_cache,
-        # #      analyze_data_tensor_adapter_config)
-        #     # | 'Analyze' >> tft_beam.AnalyzeDatasetWithCache(
-        #     #     preprocessing_fn, pipeline=pipeline))
-        # transform_fn = (
-        #     (input_analysis_data, analyze_data_tensor_adapter_config)
-        #     | 'Analyze' >> tft_beam.AnalyzeDataset(
-        #         tf_transform_output.transform_raw_features, pipeline=pipeline))
-
-        # WriteTransformFn writes transform_fn and metadata to subdirectories
-        # tensorflow_transform.SAVED_MODEL_DIR and
-        # tensorflow_transform.TRANSFORMED_METADATA_DIR respectively.
-        # (transform_fn
-        #  | 'WriteTransformFn'
-        #  >> tft_beam.WriteTransformFn(transform_output_path))
-
+        temp_dir=temp_path,
+        desired_batch_size=desired_batch_size,
+        passthrough_keys=self._GetTFXIOPassthroughKeys(),
+        use_deep_copy_optimization=True
+      ):
         if compute_statistics or materialization_format is not None:
           transform_fn = (
               pipeline | transform_fn_io.ReadTransformFn(transform_graph_uri))
@@ -544,8 +516,9 @@ class TransformWithGraphExecutor(executor.Executor):
               stats_input = [
                   dataset.standardized for dataset in analyze_data_list]
 
-            pre_transform_stats_options = (
-                transform_stats_options.get_pre_transform_stats_options())
+            pre_transform_stats_options = _InvokeStatsOptionsUpdaterFn(
+                stats_options_updater_fn,
+                stats_options_util.StatsType.PRE_TRANSFORM, schema_proto)
             (stats_input
              | 'FlattenAnalysisDatasets' >> beam.Flatten(pipeline=pipeline)
              | 'GenerateStats[FlattenedAnalysisDataset]' >> self._GenerateStats(
@@ -594,8 +567,11 @@ class TransformWithGraphExecutor(executor.Executor):
                 transform_output_path,
                 tft.TFTransformOutput.POST_TRANSFORM_FEATURE_STATS_PATH)
 
-            post_transform_stats_options = (
-                transform_stats_options.get_post_transform_stats_options())
+            post_transform_stats_options = _InvokeStatsOptionsUpdaterFn(
+                stats_options_updater_fn,
+                stats_options_util.StatsType.POST_TRANSFORM,
+                transformed_schema_proto, metadata.asset_map,
+                transform_output_path)
             ([dataset.transformed_and_standardized
               for dataset in transform_data_list]
              | 'FlattenTransformedDatasets' >> beam.Flatten()
@@ -698,12 +674,10 @@ class TransformWithGraph(base_component.BaseComponent):
     if materialize and transformed_examples is None:
       transformed_examples = types.Channel(
           type=standard_artifacts.Examples,
-          # TODO(b/161548528): remove the hardcode artifact.
-          artifacts=[standard_artifacts.Examples()],
           matching_channel_name='examples')
     elif not materialize and transformed_examples is not None:
       raise ValueError(
-          'must not specify transformed_examples when materialize==False')
+          'Must not specify transformed_examples when materialize is False.')
 
     transform_output = transform_output or types.Channel(
         type=standard_artifacts.TransformGraph,

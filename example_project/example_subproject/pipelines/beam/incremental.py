@@ -6,7 +6,7 @@ from __future__ import print_function
 import datetime
 import os
 
-from __example_subproject__.pipelines.defs.incremental import create_pipeline
+from mlp.pipelines.incremental import create_pipeline
 from tfx.orchestration.beam.beam_dag_runner import BeamDagRunner
 
 from __example_subproject__ import preprocess
