@@ -644,7 +644,6 @@ class TransformWithGraph(base_component.BaseComponent):
       transform_graph: types.Channel = None,
       transform_output: Optional[types.Channel] = None,
       transformed_examples: Optional[types.Channel] = None,
-      instance_name: Optional[Text] = None,
       materialize: bool = True,
       custom_config: Optional[Dict[Text, Any]] = None):
     """Construct a Transform component.
@@ -660,8 +659,6 @@ class TransformWithGraph(base_component.BaseComponent):
       transformed_examples: Optional output 'ExamplesPath' channel for
         materialized transformed examples, which includes both 'train' and
         'eval' splits.
-      instance_name: Optional unique instance name. Necessary iff multiple
-        transform components are declared in the same pipeline.
       materialize: If True, write transformed examples as an output. If False,
         `transformed_examples` must not be provided.
       custom_config: A dict which contains additional parameters that will be
@@ -674,7 +671,8 @@ class TransformWithGraph(base_component.BaseComponent):
     if materialize and transformed_examples is None:
       transformed_examples = types.Channel(
           type=standard_artifacts.Examples,
-          matching_channel_name='examples')
+          # matching_channel_name='examples')
+          )
     elif not materialize and transformed_examples is not None:
       raise ValueError(
           'Must not specify transformed_examples when materialize is False.')
@@ -689,4 +687,4 @@ class TransformWithGraph(base_component.BaseComponent):
         transform_output=transform_output,
         transformed_examples=transformed_examples,
         custom_config=json.dumps(custom_config))
-    super(TransformWithGraph, self).__init__(spec=spec, instance_name=instance_name)
+    super(TransformWithGraph, self).__init__(spec=spec)

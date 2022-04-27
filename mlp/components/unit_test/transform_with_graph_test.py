@@ -29,19 +29,19 @@ class ComponentTest(tf.test.TestCase):
     )
     self.assertEqual(
       'Schema',
-      component_instance.inputs.schema.type_name
+      component_instance.inputs['schema'].type_name
     )
     self.assertEqual(
       'Examples',
-      component_instance.inputs.examples.type_name
+      component_instance.inputs['examples'].type_name
     )
     self.assertEqual(
       'TransformGraph',
-      component_instance.inputs.transform_graph.type_name
+      component_instance.inputs['transform_graph'].type_name
     )
     self.assertEqual(
       'Examples',
-      component_instance.outputs.transformed_examples.type_name
+      component_instance.outputs['transformed_examples'].type_name
     )
 
 
