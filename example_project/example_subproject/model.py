@@ -76,9 +76,10 @@ class BasicNN(tf.keras.Model):
           depth=len(self.vocabularies[key.replace('_xf', '')]),
           dtype=tf.float32
         )
-        input = tf.squeeze(input, axis=1)
+        # input = tf.squeeze(input, axis=1)
       else:
         input = inputs[key]
+        input = tf.expand_dims(input, axis=-1)
       all_inputs.append(input)
 
     logits = tf.concat(all_inputs, axis=1)
@@ -114,9 +115,9 @@ class BasicNN(tf.keras.Model):
         raw_features[key] = self._convert_to_sparse(receiver_tensors[key])
 
       transformed_features = self.tft_layer(raw_features)
-      for key in transformed_features:
-        transformed_features[key] = tf.expand_dims(
-          transformed_features[key], axis=-1)
+      # for key in transformed_features:
+      #   transformed_features[key] = tf.expand_dims(
+      #     transformed_features[key], axis=-1)
       logits = self(transformed_features, training=False)
 
       # Convert the label indices to strings and return the prediction
