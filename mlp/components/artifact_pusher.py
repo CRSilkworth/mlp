@@ -134,7 +134,7 @@ def pusher_component_factory(artifact_type):
       output = artifact_type()
       for key, value in self._properties.items():
         setattr(output, key, value)
-      output = types.Channel(type=artifact_type, artifacts=[output])
+      output = types.Channel(type=artifact_type)
 
       spec = ArtifactPusherSpec(
         artifact=artifact,

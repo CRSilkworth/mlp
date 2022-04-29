@@ -678,8 +678,7 @@ class TransformWithGraph(base_component.BaseComponent):
           'Must not specify transformed_examples when materialize is False.')
 
     transform_output = transform_output or types.Channel(
-        type=standard_artifacts.TransformGraph,
-        artifacts=[standard_artifacts.TransformGraph()])
+        type=standard_artifacts.TransformGraph)
     spec = TransformWithGraphSpec(
         examples=examples,
         schema=schema,

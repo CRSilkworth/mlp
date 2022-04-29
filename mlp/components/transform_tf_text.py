@@ -79,5 +79,5 @@ class Executor(TransformExecutor):
 
 
 class TransformTFText(Transform):
-  # EXECUTOR_SPEC = executor_spec.BeamExecutorSpec(Executor)
-  EXECUTOR_SPEC = executor_spec.ExecutorClassSpec(Executor)
+  EXECUTOR_SPEC = executor_spec.BeamExecutorSpec(Executor)
+  # EXECUTOR_SPEC = executor_spec.ExecutorClassSpec(Executor)

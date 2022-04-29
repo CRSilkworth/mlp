@@ -154,9 +154,7 @@ class AlwaysPusher(base_component.BaseComponent):
       instance_name: Optional unique instance name. Necessary if multiple Pusher
         components are declared in the same pipeline.
     """
-    output = output or types.Channel(
-        type=standard_artifacts.PushedModel,
-        artifacts=[standard_artifacts.PushedModel()])
+    output = output or types.Channel(type=standard_artifacts.PushedModel)
 
     if push_destination is None and not custom_executor_spec:
       raise ValueError('push_destination is required unless a '
