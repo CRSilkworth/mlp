@@ -81,7 +81,7 @@ def pipeline_var_names(
     'data_root': data_root,
     'serving_root': serving_root,
     'pipeline_mod': pipeline_mod,
-    'pipeline_name': pipeline_name,
+    'mlp_pipeline_name': pipeline_name,
     'kfp_pipeline_name': kfp_pipeline_name,
     'vc_config_path': os.path.join(run_root, 'config', 'pipeline_vars.json'),
     'metadata_path': os.path.join(data_root, 'metadata', 'metadata.db')
