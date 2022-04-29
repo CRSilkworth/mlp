@@ -6,7 +6,7 @@ from __future__ import print_function
 
 from mlp.components.always_pusher import AlwaysPusher
 
-from tfx.components import ImporterNode
+from tfx.dsl.components.common.importer import Importer
 from tfx.components import Trainer
 from tfx.components.trainer.executor import GenericExecutor
 from tfx.dsl.components.base import executor_spec
@@ -55,35 +55,32 @@ def create_pipeline(
 
   """
   components = []
-  schema_importer = ImporterNode(
-    instance_name='schema_importer',
+  schema_importer = Importer(
     source_uri=schema_uri,
     artifact_type=standard_artifacts.Schema,
     reimport=False
-  )
+  ).with_id('schema_importer')
   components.append(schema_importer)
 
-  transform_graph_importer = ImporterNode(
-    instance_name='transform_graph_importer',
+  transform_graph_importer = Importer(
     source_uri=transform_graph_uri,
     artifact_type=standard_artifacts.TransformGraph,
     reimport=False
-  )
+  ).with_id('transform_graph_importer')
   components.append(transform_graph_importer)
 
-  examples_importer = ImporterNode(
-    instance_name='examples_importer',
+  examples_importer = Importer(
     source_uri=examples_uri,
     artifact_type=standard_artifacts.Examples,
     properties={
       'split_names':
       artifact_utils.encode_split_names(artifact.DEFAULT_EXAMPLE_SPLITS)},
     reimport=False
-  )
+  ).with_id('examples_importer')
   components.append(examples_importer)
 
   if model_uri is not None:
-    model_importer = ImporterNode(
+    model_importer = Importer(
       instance_name='import_model',
       source_uri=model_uri,
       artifact_type=standard_artifacts.Model,
@@ -96,8 +93,8 @@ def create_pipeline(
 
   # Uses user-provided Python function that implements a model using TF-Learn.
   trainer = Trainer(
-    transformed_examples=examples_importer.outputs['result'],
-    custom_executor_spec=executor_spec.ExecutorClassSpec(GenericExecutor),
+    examples=examples_importer.outputs['result'],
+    # custom_executor_spec=executor_spec.ExecutorClassSpec(GenericExecutor),
     schema=schema_importer.outputs['result'],
     transform_graph=transform_graph_importer.outputs['result'],
     train_args=trainer_pb2.TrainArgs(),

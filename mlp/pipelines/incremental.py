@@ -9,7 +9,7 @@ from mlp.components.artifact_pusher import SchemaPusher
 from mlp.components.artifact_pusher import TransformGraphPusher
 from mlp.components.transform_with_graph import TransformWithGraph
 
-from tfx.components import ImporterNode
+from tfx.dsl.components.common import Importer
 from tfx.components import Trainer
 from tfx.components import BigQueryExampleGen
 from tfx.orchestration import pipeline
@@ -68,19 +68,19 @@ def create_pipeline(
     )
   )
 
-  schema_importer = ImporterNode(
+  schema_importer = Importer(
     source_uri=os.path.join(prev_run_root, 'serving/schema'),
     artifact_type=standard_artifacts.Schema,
     reimport=False
   ).with_id('schema_importer')
 
-  transform_graph_importer = ImporterNode(
+  transform_graph_importer = Importer(
     source_uri=os.path.join(prev_run_root, 'serving/transform_graph'),
     artifact_type=standard_artifacts.TransformGraph,
     reimport=False
   ).with_id('transform_graph_importer')
 
-  model_importer = ImporterNode(
+  model_importer = Importer(
     source_uri=os.path.join(prev_run_root, 'serving/model'),
     artifact_type=standard_artifacts.Model,
     reimport=False
@@ -88,14 +88,14 @@ def create_pipeline(
 
   # Performs transformations and feature engineering in training and serving.
   transform = TransformWithGraph(
-      examples=example_gen.outputs['examples'],
+      examples=example_gen.outputs['transformed_examples'],
       schema=schema_importer.outputs['result'],
       transform_graph=transform_graph_importer.outputs['result']
   )
 
   # Uses user-provided Python function that implements a model using TF-Learn.
   trainer = Trainer(
-    transformed_examples=transform.outputs['transformed_examples'],
+    examples=transform.outputs['transformed_examples'],
     schema=schema_importer.outputs['result'],
     transform_graph=transform_graph_importer.outputs['result'],
     train_args=trainer_pb2.TrainArgs(),
@@ -122,8 +122,7 @@ def create_pipeline(
           base_directory=os.path.join(run_root, 'serving', 'schema')
         )
       ),
-      instance_name='schema_pusher'
-  )
+  ).with_id('schema_pusher')
 
   transform_graph_pusher = TransformGraphPusher(
       artifact=transform_graph_importer.outputs['result'],
@@ -132,8 +131,7 @@ def create_pipeline(
           base_directory=os.path.join(run_root, 'serving', 'transform_graph')
         )
       ),
-      instance_name='transform_graph_pusher'
-  )
+  ).with_id('transform_graph_pusher')
 
   pipeline_kwargs = {}
   if metadata_path is not None:

@@ -10,7 +10,7 @@ from mlp.components.artifact_pusher import TransformGraphPusher
 from mlp.components.transform_tf_text import TransformTFText
 
 from tfx.components import ExampleValidator
-from tfx.components import ImporterNode
+from tfx.dsl.components.common.importer import Importer
 from tfx.components import StatisticsGen
 # from tfx.components import Transform
 from tfx.components import Trainer
@@ -76,11 +76,10 @@ def create_pipeline(
   statistics_gen = StatisticsGen(examples=example_gen.outputs['examples'])
 
   # Pull in generated schema
-  schema_importer = ImporterNode(
+  schema_importer = Importer(
     source_uri=os.path.join(run_root, 'schema'),
     artifact_type=standard_artifacts.Schema,
     reimport=False,
-    instance_name='schema_importer'
   ).with_id('schema_importer')
 
   # Performs anomaly detection based on statistics and data schema.
@@ -101,8 +100,8 @@ def create_pipeline(
 
   # Uses user-provided Python function that implements a model using TF-Learn.
   trainer = Trainer(
-    transformed_examples=transform.outputs['transformed_examples'],
-    custom_executor_spec=executor_spec.ExecutorClassSpec(GenericExecutor),
+    examples=transform.outputs['transformed_examples'],
+    # custom_executor_spec=executor_spec.ExecutorClassSpec(GenericExecutor),
     schema=schema_importer.outputs['result'],
     transform_graph=transform.outputs['transform_graph'],
     train_args=trainer_pb2.TrainArgs(),
@@ -162,7 +161,7 @@ def create_pipeline(
       schema_pusher,
       transform_graph_pusher
     ],
-    enable_cache=True,
+    # enable_cache=True,
     beam_pipeline_args=beam_pipeline_args,
     **pipeline_kwargs
 
