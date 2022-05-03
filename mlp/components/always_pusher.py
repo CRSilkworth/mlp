@@ -33,11 +33,9 @@ from tfx.utils import path_utils
 from tfx.proto import pusher_pb2
 from tfx.types import standard_artifacts
 from tfx.types import artifact_utils
-from tfx.types.standard_component_specs import PusherSpec
 from tfx.types.component_spec import ExecutionParameter
 from tfx.types.component_spec import ChannelParameter
 from tfx.types.component_spec import ComponentSpec
-from tfx.proto import pusher_pb2
 import time
 
 

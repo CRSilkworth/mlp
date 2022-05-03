@@ -20,7 +20,6 @@ from tfx.types import standard_artifacts
 from tfx.components.pusher.executor import Executor
 from google.protobuf import json_format
 from tfx.types import artifact_utils
-from tfx.utils import io_utils
 
 ARTIFACT_KEY = 'artifact'
 PUSHED_ARTIFACT_KEY = 'pushed_artifact'
