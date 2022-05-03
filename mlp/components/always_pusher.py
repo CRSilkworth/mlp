@@ -29,6 +29,7 @@ from tfx.dsl.components.base import base_component
 from tfx.dsl.components.base import base_executor
 from tfx.dsl.components.base import executor_spec
 from tfx.utils import io_utils
+from mlp.utils import dirs
 from tfx.utils import path_utils
 from tfx.proto import pusher_pb2
 from tfx.types import standard_artifacts
@@ -93,7 +94,8 @@ class AlwaysPusherExecutor(base_executor.BaseExecutor):
           serving_path)
     else:
       # tf.serving won't load partial model, it will retry until fully copied.
-      io_utils.copy_dir(model_path, serving_path)
+      # io_utils.copy_dir(model_path, serving_path)
+      dirs.copy_dir(model_path, serving_path, ignore_subdirs=['checkpoints'])
       logging.info('Model written to serving path %s.', serving_path)
 
     model_push.set_int_custom_property('pushed', 1)
