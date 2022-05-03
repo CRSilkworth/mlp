@@ -15,6 +15,7 @@ from mlp.utils.dirs import pipeline_dirs
 from mlp.kubeflow.pipeline_ops import set_gpu_limit
 from mlp.utils.dirs import pipeline_var_names
 from mlp.utils.sql import query_with_kwargs
+from mlp.utils.version import get_project_version
 from mlp.utils.config import VarConfig
 
 _MLP_PROJECT = '__example_project__'
@@ -50,6 +51,7 @@ if __name__ == "__main__":
   vc.gcp_region = '__gcp_region__'
   vc.mlp_project = _MLP_PROJECT
   vc.mlp_subproject = _MLP_SUBPROJECT
+  vc.version = get_project_version()
 
   vc.categorical_feature_keys = _CATEGORICAL_FEATURE_KEYS
   vc.numerical_feature_keys = _NUMERICAL_FEATURE_KEYS
@@ -91,6 +93,12 @@ if __name__ == "__main__":
     )
   )
 
+  vc.image_name = 'gcr.io/{gcp_project}/{mlp_project}:{version}'.format(
+    gcp_project=vc.gcp_project,
+    mlp_project=vc.mlp_project,
+    version=vc.version
+  )
+
   # If running with dataflow
   vc.beam_pipeline_args = [
     '--experiments=shuffle_mode=auto',
@@ -121,7 +129,8 @@ if __name__ == "__main__":
   runner_config = kubeflow_dag_runner.KubeflowDagRunnerConfig(
     kubeflow_metadata_config=kubeflow_dag_runner.get_default_kubeflow_metadata_config(),
     pipeline_operator_funcs=pipeline_op_funcs,
-    tfx_image=os.environ.get('KUBEFLOW_TFX_IMAGE', None)
+    # tfx_image=os.environ.get('KUBEFLOW_TFX_IMAGE', None)
+    tfx_image=vc.image_name
   )
 
   vc.write(vc.vc_config_path)
