@@ -2,6 +2,7 @@ import tensorflow as tf
 import tempfile
 import os
 import json
+from hashlib import sha1
 
 
 class VarConfig(object):
@@ -29,6 +30,11 @@ class VarConfig(object):
       super(VarConfig, self).__setattr__(name, value)
     else:
       super(VarConfig, self).__setattr__(name, value)
+
+  def get_hash(self):
+    temp_d = {k: v for k, v in self.var_names.items() if k != 'hash'}
+
+    hash = sha1(json.dumps(temp_d, sort_keys=True))
 
   def get_vars(self):
     r_dict = {}
