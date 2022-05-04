@@ -10,7 +10,8 @@ def pipeline_dirs(
   run_str: Text,
   mlp_project: Text,
   mlp_subproject: Text,
-  pipeline_name: Text) -> Tuple[Text, Text, Text, Text]:
+  pipeline_name: Text,
+  experiment: Optional[Text] = None) -> Tuple[Text, Text, Text, Text]:
   """Get the standard directory names from the project names.
 
   Parameters
@@ -28,7 +29,10 @@ def pipeline_dirs(
   serving_uri: The directory to write all final output objects (e.g. trained model.)
 
   """
-  pipeline_root = os.path.join(run_dir, 'tfx', pipeline_name)
+  if experiment is None:
+    pipeline_root = os.path.join(run_dir, 'tfx', pipeline_name)
+  else:
+    pipeline_root = os.path.join(run_dir, 'tfx', pipeline_name, experiment)
   if run_str is not None:
     run_root = os.path.join(pipeline_root, run_str)
   else:
@@ -48,7 +52,7 @@ def pipeline_var_names(
   mlp_subproject: Text,
   runner: Text,
   pipeline_type: Text,
-  version: Optional[Text] = None
+  experiment: Optional[Text] = None,
   ):
 
   pipeline_name = '-'.join([
@@ -72,7 +76,8 @@ def pipeline_var_names(
     run_str,
     mlp_project,
     mlp_subproject,
-    pipeline_name
+    pipeline_name,
+    experiment=experiment
   )
 
   return {
