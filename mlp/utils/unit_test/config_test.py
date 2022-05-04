@@ -13,6 +13,22 @@ from mlp.utils.resolvers import multi_pipeline_uri, latest_artifact_path
 from mlp.utils.config import VarConfig
 
 class ComponentTest(unittest.TestCase):
+  def test_hash(self):
+    vc = VarConfig()
+
+    vc.a = 'a'
+    vc.add_vars(
+      b=1,
+      c=[1, 2, 3]
+    )
+
+    self.assertEqual(vc.get_hash(), 'b9884aa1')
+    vc.hash = vc.get_hash()
+    self.assertEqual(vc.get_hash(), 'b9884aa1')
+
+    vc.d = {'1': 'a', '2': 'b'}
+    self.assertEqual(vc.get_hash(), '24314078')
+
   def test_config_save_load(self):
 
       with tempfile.TemporaryDirectory() as temp_dir:
@@ -37,6 +53,7 @@ class ComponentTest(unittest.TestCase):
         vc = VarConfig(file_path)
 
         self.assertEqual(vc.vars, {'a': 'a', 'b':1, 'c':[2,3,4], 'd': {'1': 'a', '2': 'b'}})
+
 
 
 if __name__ == '__main__':
