@@ -31,8 +31,16 @@ class VarConfig(object):
     else:
       super(VarConfig, self).__setattr__(name, value)
 
-  def get_hash(self, max_len=8):
-    temp_d = {k: v for k, v in self.vars.items() if k != 'hash'}
+  def get_hash(self, max_len=8, var_to_ignore=None, remove_run_str=True):
+    if var_to_ignore is None:
+      var_to_ignore = ['hash']
+
+    if self.run_str is None:
+      run_str = ''
+    else:
+      run_str = self.run_str
+
+    temp_d = {k: str(v).replace(run_str, '') for k, v in self.vars.items() if (k not in var_to_ignore and run_str not in k)}
 
     hash = sha1(json.dumps(temp_d, sort_keys=True).encode('utf-8')).hexdigest()
     if max_len is not None:
