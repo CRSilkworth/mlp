@@ -1,14 +1,19 @@
-from typing import Any, Optional, Text, Dict
+"""Simple helper functions for dealing with kubeflow and kfp."""
+from typing import Text, Dict, Optional
 from absl import logging
 from subprocess import Popen, PIPE
 
 import sys
 import os
+import kfp
 
 
-def get_pipeline_version_id(client, pipeline_name, pipeline_version_name):
+def get_pipeline_version_id(
+  client: kfp.Client,
+  pipeline_name: Text,
+  pipeline_version_name: Text
+  ) -> Text:
   """Get the pipeline version id from the pipeline name and pipeline version name."""
-
   pipeline_version_id = None
 
   pipeline_id = client.get_pipeline_id(pipeline_name)
@@ -22,7 +27,10 @@ def get_pipeline_version_id(client, pipeline_name, pipeline_version_name):
   return pipeline_version_id
 
 
-def run_pipeline_file(pipeline_path, run_str, experiment=None):
+def run_pipeline_file(
+  pipeline_path: Text,
+  run_str: Text,
+  experiment: Optional[Text] = None):
   """Create the pipeline tar file to upload to kubeflow."""
   if os.path.isdir(pipeline_path):
     sys.exit('Provide pipeline file path.')
