@@ -4,6 +4,7 @@ from __future__ import division
 from __future__ import print_function
 
 import os
+import sys
 
 from mlp.pipelines.trainer_to_pusher import create_pipeline
 from tfx.orchestration.kubeflow import kubeflow_dag_runner
@@ -27,6 +28,12 @@ if __name__ == "__main__":
   vc.prev_run_root = prev_run_root
   vc.pipeline_type = _PIPELINE_TYPE
   vc.run_str = None
+  if len(sys.argv) > 1:
+    vc.run_str = sys.argv[1]
+
+  vc.experiment = None
+  if len(sys.argv) > 2:
+    vc.experiment = sys.argv[2]
 
   vc.num_train_steps = 750
   vc.num_eval_steps = 5
@@ -48,9 +55,11 @@ if __name__ == "__main__":
     vc.mlp_project,
     vc.mlp_subproject,
     vc.runner,
-    vc.pipeline_type
+    vc.pipeline_type,
+    vc.experiment
   )
   vc.add_vars(**var_names)
+  vc.hash = vc.get_hash()
   vc.write(vc.vc_config_path)
 
   pipeline_op_funcs = kubeflow_dag_runner.get_default_pipeline_operator_funcs()

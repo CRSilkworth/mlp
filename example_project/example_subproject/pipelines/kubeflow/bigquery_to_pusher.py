@@ -5,6 +5,7 @@ from __future__ import print_function
 
 import datetime
 import os
+import sys
 
 from mlp.pipelines.bigquery_to_pusher import create_pipeline
 from tfx.orchestration.kubeflow import kubeflow_dag_runner
@@ -62,6 +63,12 @@ if __name__ == "__main__":
   vc.run_dir = _RUN_DIR
   vc.pipeline_type = _PIPELINE_TYPE
   vc.run_str = None
+  if len(sys.argv) > 1:
+    vc.run_str = sys.argv[1]
+
+  vc.experiment = None
+  if len(sys.argv) > 2:
+    vc.experiment = sys.argv[2]
 
   vc.query = """
     SELECT
@@ -89,7 +96,8 @@ if __name__ == "__main__":
       vc.mlp_project,
       vc.mlp_subproject,
       vc.runner,
-      vc.pipeline_type
+      vc.pipeline_type,
+      vc.experiment
     )
   )
 
@@ -133,6 +141,7 @@ if __name__ == "__main__":
     tfx_image=vc.image_name
   )
 
+  vc.hash = vc.get_hash()
   vc.write(vc.vc_config_path)
   kubeflow_dag_runner.KubeflowDagRunner(config=runner_config).run(
     create_pipeline(

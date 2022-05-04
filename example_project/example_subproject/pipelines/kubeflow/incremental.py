@@ -4,6 +4,7 @@ from __future__ import division
 from __future__ import print_function
 
 import os
+import sys
 
 from mlp.pipelines.bigquery_to_pusher import create_pipeline
 from tfx.orchestration.kubeflow import kubeflow_dag_runner
@@ -35,6 +36,12 @@ if __name__ == "__main__":
   vc.prev_run_root = prev_run_root
   vc.pipeline_type = _PIPELINE_TYPE
   vc.run_str = None
+  if len(sys.argv) > 1:
+    vc.run_str = sys.argv[1]
+
+  vc.experiment = None
+  if len(sys.argv) > 2:
+    vc.experiment = sys.argv[2]
 
   vc.freq_num = -3
   vc.freq = "month"
@@ -71,7 +78,8 @@ if __name__ == "__main__":
   vc.save_summary_steps = 10
   vc.save_checkpoints_secs = 3600
   vc.learning_rate = 2e-5
-
+  vc.hash = vc.get_hash()
+  vc.write(vc.vc_config_path)
   runner_config = kubeflow_dag_runner.KubeflowDagRunnerConfig(
     kubeflow_metadata_config=kubeflow_dag_runner.get_default_kubeflow_metadata_config(),
     # tfx_image=os.environ.get('KUBEFLOW_TFX_IMAGE', None)
