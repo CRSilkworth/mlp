@@ -61,7 +61,8 @@ if __name__ == "__main__":
   runner_config = kubeflow_dag_runner.KubeflowDagRunnerConfig(
     kubeflow_metadata_config=kubeflow_dag_runner.get_default_kubeflow_metadata_config(),
     pipeline_operator_funcs=pipeline_op_funcs,
-    tfx_image=os.environ.get('KUBEFLOW_TFX_IMAGE', None)
+    # tfx_image=os.environ.get('KUBEFLOW_TFX_IMAGE', None)
+    tfx_image=vc.image_name
   )
   kubeflow_dag_runner.KubeflowDagRunner(config=runner_config).run(
     create_pipeline(
