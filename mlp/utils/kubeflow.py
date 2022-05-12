@@ -11,13 +11,14 @@ import kfp
 def get_pipeline_version_id(
   client: kfp.Client,
   pipeline_name: Text,
-  pipeline_version_name: Text
+  pipeline_version_name: Text,
+  page_size=100000
   ) -> Text:
   """Get the pipeline version id from the pipeline name and pipeline version name."""
   pipeline_version_id = None
 
   pipeline_id = client.get_pipeline_id(pipeline_name)
-  for d in client.list_pipeline_versions(pipeline_id).versions:
+  for d in client.list_pipeline_versions(pipeline_id, page_size=page_size).versions:
     if d.name == pipeline_version_name:
       pipeline_version_id = d.id
 
