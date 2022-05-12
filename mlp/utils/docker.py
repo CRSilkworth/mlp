@@ -20,9 +20,9 @@ def build_image(
   stdout, stderr = p.communicate()
 
   logging.info('build_image stdout:')
-  logging.info(stderr)
+  logging.info(stderr.decode('utf-8'))
   logging.error('build_image stderr:')
-  logging.error(stdout)
+  logging.error(stdout.decode('utf-8'))
   return p.returncode
 
 
@@ -36,9 +36,9 @@ def push_image(
   stdout, stderr = p.communicate()
 
   logging.info('push_image stdout:')
-  logging.info(stdout)
+  logging.info(stdout.decode('utf-8'))
   logging.error('push_image stderr:')
-  logging.error(stderr)
+  logging.error(stderr.decode('utf-8'))
 
   return p.returncode
 
@@ -53,9 +53,9 @@ def pull_image(
   stdout, stderr = p.communicate()
 
   logging.info('push_image stdout:')
-  logging.info(stdout)
+  logging.info(stdout.decode('utf-8'))
   logging.error('push_image stderr:')
-  logging.error(stderr)
+  logging.error(stderr.decode('utf-8'))
 
   return p.returncode
 
@@ -80,4 +80,5 @@ def remote_image_exists(
 
   stdout, stderr = p.communicate()
 
+  
   return int(stdout.strip()) == 0
