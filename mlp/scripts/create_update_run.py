@@ -72,7 +72,7 @@ def create_update_run(
 
   # Create and push the image if it doesn't already exist on gcp
   if remote_image_exists(image_name, vc.version):
-    logging.warning("Image already exists remotely so it won't be built. If you have changes to local project they may not be in the remote image. Increment the version number in version.py to build a new image with the current changes.")
+    logging.warning("Image {}:{} already exists remotely so it won't be built. If you have changes to local project they may not be in the remote image. Increment the version number in version.py to build a new image with the current changes.".format(image_name, vc.version))
   else:
     if not local_image_exists(image_name, vc.version):
       logging.info('{image_name}:{image_tag} not found, building...'.format(image_name=image_name, image_tag=vc.version))
@@ -107,7 +107,7 @@ def create_update_run(
 
   # Upload pipeline version if it doesn't exist
   pipeline_version = vc.version + '-' + vc.hash
-  pipeline_versions = [d.name for d in client.list_pipeline_versions(pipeline_id).versions]
+  pipeline_versions = [d.name for d in client.list_pipeline_versions(pipeline_id, page_size=100000).versions]
   if pipeline_version not in pipeline_versions:
     client.upload_pipeline_version(pipeline_package_path, pipeline_version_name=pipeline_version, pipeline_id=pipeline_id)
   pipeline_version_id = get_pipeline_version_id(client, pipeline_name, pipeline_version)
