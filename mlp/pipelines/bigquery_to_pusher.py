@@ -4,18 +4,19 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from mlp.components.always_pusher import AlwaysPusher
+# from mlp.components.always_pusher import AlwaysPusher
 from mlp.components.artifact_pusher import SchemaPusher
 from mlp.components.artifact_pusher import TransformGraphPusher
 from mlp.components.transform_tf_text import TransformTFText
 
+from tfx.components import Pusher
 from tfx.components import ExampleValidator
 from tfx.dsl.components.common.importer import Importer
+from tfx.dsl.components.common.resolver import Resolver
 from tfx.components import StatisticsGen
-# from tfx.components import Transform
+from tfx.components import Transform
 from tfx.components import Trainer
-from tfx.components.trainer.executor import GenericExecutor
-from tfx.dsl.components.base import executor_spec
+from tfx.components import Evaluator
 from tfx.extensions.google_cloud_big_query.example_gen.component import BigQueryExampleGen
 from tfx.orchestration import pipeline
 from tfx.orchestration import metadata
@@ -23,9 +24,13 @@ from tfx.proto import trainer_pb2
 from tfx.proto import example_gen_pb2
 from tfx.proto import pusher_pb2
 from tfx.types import standard_artifacts
-
+from tfx.v1.dsl.experimental import LatestBlessedModelStrategy
+from tfx.v1.dsl import Channel
+from tfx.v1.proto import PushDestination
 from typing import Text, List, Dict, Optional, Any
 
+import tensorflow_model_analysis as tfma
+import tfx
 import os
 
 
@@ -33,12 +38,14 @@ def create_pipeline(
   run_root: Text,
   pipeline_name: Text,
   pipeline_mod: Text,
+  serving_dir: Text,
   query: Text,
   beam_pipeline_args: Optional[List[Text]] = None,
   metadata_path: Optional[Text] = None,
   custom_config: Optional[Dict[Text, Any]] = None,
   train_hash_buckets: Optional[int] = 19,
   eval_hash_buckets: Optional[int] = 1,
+  eval_config: Optional[tfma.EvalConfig] = None,
 ) -> pipeline.Pipeline:
   """Implement an end to end training pipeline.
 
@@ -89,10 +96,8 @@ def create_pipeline(
   )
 
   # Performs transformations and feature engineering in training and serving.
-  transform_pipeline_args = beam_pipeline_args[:]
-  transform_pipeline_args.append('--setup_file=./setup.py')
-  # transform = Transform(
-  transform = TransformTFText(
+  transform = Transform(
+  # transform = TransformTFText(
       examples=example_gen.outputs['examples'],
       schema=schema_importer.outputs['result'],
       preprocessing_fn='{}.preprocessing_fn'.format(pipeline_mod)
@@ -110,14 +115,28 @@ def create_pipeline(
     custom_config=custom_config
   )
 
-  # Not depdent on blessing. Always pushes regardless of quality.
-  pusher = AlwaysPusher(
-      model=trainer.outputs['model'],
-      push_destination=pusher_pb2.PushDestination(
-        filesystem=pusher_pb2.PushDestination.Filesystem(
-          base_directory=os.path.join(run_root, 'serving', 'model')
+  # model_resolver = Resolver(
+  #     strategy_class=LatestBlessedModelStrategy,
+  #     model=Channel(type=tfx.types.standard_artifacts.Model),
+  #     model_blessing=Channel(
+  #         type=tfx.types.standard_artifacts.ModelBlessing)).with_id(
+  #             'latest_blessed_model_resolver')
+
+  # evaluator = Evaluator(
+  #     examples=example_gen.outputs['examples'],
+  #     model=trainer.outputs['model'],
+  #     # baseline_model=model_resolver.outputs['model'],
+  #     eval_config=eval_config)
+
+  pusher = Pusher(
+    # Push model from 'infra_blessing' input.
+    model=trainer.outputs['model'],
+    # model_blessing=evaluator.outputs['blessing'],
+    push_destination=PushDestination(
+          filesystem=PushDestination.Filesystem(
+            base_directory=serving_dir
+          )
         )
-      ),
   ).with_id('model_pusher')
 
   # Pushes schema to a particular directory. Only needed if schema is required
@@ -157,6 +176,8 @@ def create_pipeline(
       validate_stats,
       transform,
       trainer,
+      # model_resolver,
+      # evaluator,
       pusher,
       schema_pusher,
       transform_graph_pusher
