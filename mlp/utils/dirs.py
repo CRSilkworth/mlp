@@ -31,15 +31,17 @@ def pipeline_dirs(
   """
   if experiment is None:
     pipeline_root = os.path.join(run_dir, 'tfx', pipeline_name)
+    serving_root = os.path.join(run_dir, 'serving')
   else:
     pipeline_root = os.path.join(run_dir, 'tfx', pipeline_name, experiment)
+    serving_root = os.path.join(run_dir, 'serving', experiment)
+
   if run_str is not None:
     run_root = os.path.join(pipeline_root, run_str)
   else:
     run_str = datetime.datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S')
     run_root = os.path.join(pipeline_root, run_str)
 
-  serving_root = os.path.join(run_root, 'serving')
   data_root = os.path.join(run_root, 'data')
 
   return pipeline_root, run_root, data_root, serving_root
@@ -85,6 +87,7 @@ def pipeline_var_names(
     'run_root': run_root,
     'data_root': data_root,
     'serving_root': serving_root,
+    'serving_dir': os.path.join(serving_root, mlp_project, mlp_subproject),
     'pipeline_mod': pipeline_mod,
     'pipeline_name': pipeline_name,
     'kfp_pipeline_name': kfp_pipeline_name,
@@ -114,6 +117,7 @@ def copy_dir(
   src_uri: Text,
   dst_uri: Text,
   ignore_subdirs: Optional[List[Text]] = None):
+  """Copy directory to/from gcp and local."""
 
   if ignore_subdirs is None:
     ignore_subdirs = []
@@ -149,7 +153,7 @@ def download_dir(
   src_uri: Text,
   dst_uri: Text,
   ignore_subdirs: Optional[List[Text]] = None):
-
+  """Download directory from gcp bucket."""
   if ignore_subdirs is None:
     ignore_subdirs = []
   else:
