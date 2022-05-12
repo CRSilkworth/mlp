@@ -62,21 +62,18 @@ def create_pipeline(
     source_uri=os.path.join(prev_run_root, 'serving/schema'),
     artifact_type=standard_artifacts.Schema,
     reimport=False,
-    instance_name='schema_importer'
   ).with_id('schema_importer')
 
   transform_graph_importer = Importer(
     source_uri=os.path.join(prev_run_root, 'serving/transform_graph'),
     artifact_type=standard_artifacts.TransformGraph,
     reimport=False,
-    instance_name='graph_importer'
   ).with_id('graph_importer')
 
   model_importer = Importer(
     source_uri=os.path.join(prev_run_root, 'serving/model'),
     artifact_type=standard_artifacts.Model,
     reimport=False,
-    instance_name='model_importer'
   ).with_id('model_importer')
 
   # Performs transformations and feature engineering in training and serving.
