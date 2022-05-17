@@ -7,6 +7,8 @@
 *.o
 *.so
 *.pyc
+*.egg*
+**/build
 
 
 # Images #
@@ -40,13 +42,18 @@
 
 # Sensitive Info #
 ##################
-set_env.sh
+startup.sh
+build.yaml
+custom_env.sh
 
 **/runs/**
+
 # Temp scripts #
 ################
 temp*.py
 temp*.sh
+**/tmp*
+**/temp*
 
 # Packages #
 ############
@@ -60,6 +67,8 @@ temp*.sh
 *.rar
 *.tar
 *.zip
+**/venv_*
+**/*_venv*
 
 # Logs and databases #
 ######################
@@ -92,6 +101,7 @@ Thumbs.db
 
 # Exceptions #
 ##############
+!**/test_data.json
 !**/test_data/**
 !**/test_runs/**
 !room_tag_predictor/conv/data/raw/*csv
