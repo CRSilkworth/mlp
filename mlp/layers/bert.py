@@ -4,8 +4,8 @@ import os
 
 from typing import Optional, List, Text, Dict, Any
 from tensorflow.python.lib.io import file_io
-from official.nlp import bert_modeling as modeling
 from tensorflow_text.python.ops.bert_tokenizer import BasicTokenizer
+import tensorflow_hub as hub
 
 
 class BertTokenizer(tf.keras.layers.Layer):
@@ -158,9 +158,9 @@ class BertEncoderInputs(tf.keras.layers.Layer):
     input_type_ids = tf.zeros_like(tokens)
 
     encoder_inputs = {
-      'input_word_ids': tokens,
+      'input_word_ids': tf.cast(tokens, int_dtype),
       'input_mask': input_mask,
-      'input_type_ids': input_type_ids
+      'input_type_ids': tf.cast(input_type_ids, int_dtype)
     }
 
     return encoder_inputs
@@ -173,31 +173,26 @@ class BertEmbedder(tf.keras.layers.Layer):
     bert_trainable: Optional[bool] = False,
     max_seq_length: Optional[int] = 128,
     float_type: Optional[Any] = tf.float32,
+    hub_url: Optional[Text] = "https://tfhub.dev/tensorflow/bert_multi_cased_L-12_H-768_A-12/4",
     **kwargs
     ):
     super(BertEmbedder, self).__init__(**kwargs)
     self.config_path = os.path.join(bert_dir, 'bert_config.json')
     self.checkpoint_dir = os.path.join(bert_dir, 'bert_checkpoint/')
 
-    self.bert_tokenizer = BertTokenizer(
+    self.tokenizer = BertTokenizer(
       bert_dir,
       max_seq_length
     )
     self.bert_encoder_inputs = BertEncoderInputs()
-    self.bert_layer = modeling.BertModel(
-      config=modeling.BertConfig.from_json_file(self.config_path),
-      float_type=float_type
-    )
+    self.bert_layer = hub.KerasLayer(
+      hub_url,
+      trainable=True)
 
   def call(self, strings, training=None, **kwargs):
-    tokens = self.bert_tokenizer(strings)
-    encoder_inputs = self.bert_encoder_inputs(tokens)
+    input_ids = self.tokenizer(strings)
+    encoder_inputs = self.encoder_inputs(input_ids, int_dtype=tf.int32)
 
-    # NOTE: CAUTION!! This does not seem to properly load, at least when using
-    # in Estimator training.
-    checkpoint = tf.train.Checkpoint(root=self.bert_layer, bert_layer=self.bert_layer)
-    checkpoint.restore(tf.train.latest_checkpoint(self.checkpoint_dir)).assert_existing_objects_matched()
+    bert_outputs = self.bert_layer(encoder_inputs)
 
-    embeddings, _ = self.bert_layer(encoder_inputs, training)
-
-    return embeddings
+    return bert_outputs['pooled_output']
