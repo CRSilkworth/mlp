@@ -8,12 +8,20 @@ def build_image(
   image_name: Text,
   image_tag: Text,
   dir: Optional[Text] = '.',
-  docker_file: Optional[Text] = None) -> int:
+  docker_file: Optional[Text] = None,
+  **kwargs) -> int:
   """Build docker image."""
+
+  build_args = []
+  if kwargs:
+    for key, value in kwargs.items():
+      build_args.append('--build-arg {}={}'.format(key, value))
+  build_args = ' '.join(build_args)
+
   if docker_file is None:
-    command = 'docker build . -t {image_name}:{image_tag}'.format(image_name=image_name, image_tag=image_tag)
+    command = 'docker build . -t {image_name}:{image_tag} {build_args}'.format(image_name=image_name, image_tag=image_tag, build_args=build_args)
   else:
-    command = 'docker build . -f {docker_file} -t {image_name}:{image_tag}'.format(image_name=image_name, image_tag=image_tag, docker_file=docker_file)
+    command = 'docker build . -f {docker_file} -t {image_name}:{image_tag} {build_args}'.format(image_name=image_name, image_tag=image_tag, docker_file=docker_file, build_args=build_args)
 
   p = Popen(command, stdout=PIPE, stderr=PIPE, shell=True)
 
@@ -80,5 +88,5 @@ def remote_image_exists(
 
   stdout, stderr = p.communicate()
 
-  
+
   return int(stdout.strip()) == 0

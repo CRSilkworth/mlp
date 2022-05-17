@@ -23,7 +23,9 @@ def check_environment_set():
     'OTHER_CLIENT_ID',
     'OTHER_CLIENT_SECRET',
     'ENDPOINT',
-    'NAMESPACE'
+    'NAMESPACE',
+    'MLP_VERSION',
+    'PROJECT_VERSION'
   ]
   for environ in environs:
     if os.environ.get(environ) is None or os.environ.get(environ).strip() == '':
@@ -76,7 +78,7 @@ def create_update_run(
   else:
     if not local_image_exists(image_name, vc.version):
       logging.info('{image_name}:{image_tag} not found, building...'.format(image_name=image_name, image_tag=vc.version))
-      exit_code = build_image(image_name, vc.version)
+      exit_code = build_image(image_name, vc.version, mlp_version=os.environ.get('MLP_VERSION'))
       if exit_code != 0:
         sys.exit("Failed to build image {image_name}:{image_tag}. Try building yourself with 'docker build . -t {image_name}:{image_tag}' to see what's wrong".format(image_name=image_name, image_tag=vc.version))
 
