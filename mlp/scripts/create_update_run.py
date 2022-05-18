@@ -96,13 +96,13 @@ def create_update_run(
   )
 
   # Create experiment if it doesn't exist
-  experiments = [d.name for d in client.list_experiments().experiments]
+  experiments = [d.name for d in client.list_experiments(page_size=100000).experiments]
   if experiment not in experiments:
     client.create_experiment(experiment)
   experiment_id = client.get_experiment(experiment_name=experiment).id
 
   # Upload pipeline if it doesn't exist
-  pipelines = [d.name for d in client.list_pipelines().pipelines]
+  pipelines = [d.name for d in client.list_pipelines(page_size=100000).pipelines]
   if pipeline_name not in pipelines:
     client.upload_pipeline(pipeline_package_path, pipeline_name=pipeline_name)
   pipeline_id = client.get_pipeline_id(pipeline_name)
