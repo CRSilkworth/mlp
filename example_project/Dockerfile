@@ -1,3 +1,4 @@
+ARG mlp_version
 FROM mlp/base:latest
 WORKDIR /pipeline
 COPY ./ ./
