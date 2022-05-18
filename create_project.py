@@ -17,6 +17,8 @@ flags.DEFINE_string('gcp_zone', 'asia-east1-b', 'The name of the GCP zone to run
 flags.DEFINE_string('gcp_credentials_json', '', 'Path to your GOOGLE_APPLICATION_CREDENTIALS json file. (If using GCP Services)')
 flags.DEFINE_string('iap_client_id', '', 'The oauth client id tied to your kubeflow deployment. (If using running from Kubeflow on GCP)')
 flags.DEFINE_string('iap_client_secret', '', 'The oauth client secret associated with your client id. (If using running from Kubeflow on GCP)')
+flags.DEFINE_string('other_client_id', '', 'The oauth client id tied to your kubeflow desktop api. (If using running from Kubeflow on GCP)')
+flags.DEFINE_string('other_client_secret', '', 'The oauth client secret associated with your other client id. (If using running from Kubeflow on GCP)')
 
 flags.DEFINE_string('dir', './', 'The directory to place the example project.')
 flags.mark_flag_as_required('mlp_project')
@@ -55,7 +57,9 @@ def main(argv: List[Any]):
     '__gcp_region__': FLAGS.gcp_zone[:-2],
     '__gcp_credentials_json__': FLAGS.gcp_credentials_json,
     '__iap_client_id__': FLAGS.iap_client_id,
-    '__iap_client_secret__': FLAGS.iap_client_secret
+    '__iap_client_secret__': FLAGS.iap_client_secret,
+    '__other_client_id__': FLAGS.other_client_id,
+    '__other_client_secret__': FLAGS.other_client_secret,
   }
 
   example_project_dir = os.path.join(os.path.dirname(__file__), 'example_project')
@@ -83,8 +87,8 @@ def main(argv: List[Any]):
       os.path.join(project_dir, 'example_subproject'), subproject_dir
     )
     os.rename(
-      os.path.join(project_dir, 'set_env_template.sh'),
-      os.path.join(project_dir, 'set_env.sh')
+      os.path.join(project_dir, 'custom_env_template.sh'),
+      os.path.join(project_dir, 'custom_env.sh')
     )
     replace_strings_in_dir(project_dir, string_map)
 
