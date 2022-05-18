@@ -30,7 +30,8 @@ __version__ = globals_dict['__version__']
 
 # Get the long description from the README file.
 with open('README.md') as fp:
-  _LONG_DESCRIPTION = fp.read().format(version=__version__)
+  readme = fp.read()
+  _LONG_DESCRIPTION = readme
 
 setup(
     name='mlp',
