@@ -2,5 +2,5 @@
 **/*venv*
 **/*temp*
 **/*tmp*
-**/set_env.sh
+**/custom_env.sh
 **/__pycache__
