@@ -1,7 +1,7 @@
 import tensorflow as tf
-import tensorflow_text as tf_text
-from tensorflow.python.lib.io import file_io
-from typing import Optional, Text, Tuple
+from typing import Optional, Text, Tuple, List, Callable
+from mlp.layers.bert import BertTokenizer
+from tensorflow_text.python.ops.bert_tokenizer import BasicTokenizer
 
 
 @tf.function(experimental_relax_shapes=True)
@@ -110,3 +110,173 @@ def char_to_wordpiece_spans(
     new_span_ends,
   )
   return new_span_starts, new_span_ends
+
+
+@tf.function
+def unicode_to_byte_indices(string, unicode_indices):
+
+  result = tf.strings.unicode_decode_with_offsets(string, 'UTF-8')
+
+  batch_size = tf.shape(string)[0]
+  max_fields = tf.shape(unicode_indices)[1]
+
+  batch_dim = tf.range(batch_size, dtype=tf.int64)
+  batch_dim = tf.reshape(batch_dim, [batch_size, 1, 1])
+  batch_dim = tf.tile(batch_dim, multiples=[1, max_fields, 1])
+
+  unicode_indices = tf.expand_dims(unicode_indices, axis=-1)
+  gather_indices = tf.concat([batch_dim, unicode_indices], axis=-1)
+
+  byte_indices = tf.gather_nd(result[1], gather_indices)
+
+  return byte_indices
+
+
+@tf.function
+def get_chat_tokens(
+  user_message: tf.Tensor,
+  system_response: tf.Tensor,
+  chat_history: tf.Tensor,
+  bert_vocab: List[Text],
+  bert_dir: Optional[Text] = 'gs://biwako-prd/bert/data/',
+  begin_token: Optional[Text] = '[CLS]',
+  separator_token: Optional[Text] = '[SEP]',
+  max_seq_length: Optional[int] = 384,
+  token_out_type: Optional[tf.DType] = tf.int64,
+  tokenizer: Optional[Callable] = None
+  ):
+
+  batch_size = tf.shape(user_message)[0]
+
+  if token_out_type in (tf.int32, tf.int64):
+    begin_token_id = bert_vocab.index(begin_token)
+    separator_token_id = bert_vocab.index(separator_token)
+
+    begin_token_tensor = tf.ones([batch_size, 1, 1], dtype=tf.int64) * begin_token_id
+    separator_token_tensor = tf.ones([batch_size, 1, 1], dtype=tf.int64) * separator_token_id
+  elif token_out_type == tf.string:
+    begin_token_tensor = tf.tile(
+      tf.reshape(begin_token, [1, 1, 1]),
+      multiples=[batch_size, 1, 1]
+    )
+    separator_token_tensor = tf.tile(
+      tf.reshape(separator_token, [1, 1, 1]),
+      multiples=[batch_size, 1, 1]
+    )
+  else:
+    raise ValueError("token_out_type must be either int32, int64 or string. got {} ".format(token_out_type))
+
+  if tokenizer is None:
+    tokenizer = BertTokenizer(bert_dir, max_seq_length, token_out_type=token_out_type, basic_tokenizer_class=BasicTokenizer)
+
+  chat_tokens = []
+  for message_num, message in enumerate([user_message, system_response, chat_history]):
+    token_dict = tokenizer.tokens_and_spans(
+      message
+    )
+    if message_num == 0:
+      chat_tokens.append(begin_token_tensor)
+      user_message_token_dict = token_dict
+    else:
+      chat_tokens.append(separator_token_tensor)
+    chat_tokens.append(token_dict['wp_tokens'])
+
+  chat_tokens = tf.concat(chat_tokens, axis=1)
+  chat_tokens = tokenizer.normalize_shape(chat_tokens)
+
+  return user_message_token_dict, chat_tokens
+
+
+@tf.function
+def adjust_fake_spans(message, is_span, fake_data, span_start, span_end, max_fields, keep_original_prob=0.1):
+  batch_size = tf.shape(span_start)[0]
+  # max_fields = tf.shape(span_start)[1]
+
+  fake_data = tf.where(is_span, fake_data, '')
+
+  batch_dim = tf.range(batch_size, dtype=tf.int32)
+  batch_dim = tf.tile(
+    tf.reshape(batch_dim, [batch_size, 1, 1]),
+    multiples=[1, max_fields, 1]
+  )
+  # Sort by span_end since there may be 'real' span_starts = 1.  There are no
+  # 'real' span_ends = 1, so it'll get properly sorted.
+  sort_indices = tf.argsort(span_end, axis=-1)
+  unsort_indices = tf.argsort(sort_indices, axis=-1)
+
+  sort_indices = tf.expand_dims(sort_indices, axis=-1)
+  sort_indices = tf.concat([batch_dim, sort_indices], axis=-1)
+
+  unsort_indices = tf.expand_dims(unsort_indices, axis=-1)
+  unsort_indices = tf.concat([batch_dim, unsort_indices], axis=-1)
+
+  sorted_span_start = tf.cast(tf.gather_nd(span_start, sort_indices), tf.int32)
+  sorted_span_end = tf.cast(tf.gather_nd(span_end, sort_indices), tf.int32)
+  sorted_fake_data = tf.gather_nd(fake_data, sort_indices)
+
+  original_spans = tf.strings.substr(
+    tf.expand_dims(message, axis=-1),
+    sorted_span_start,
+    sorted_span_end - sorted_span_start
+  )
+
+  keep_original = tf.random.uniform(sorted_fake_data.shape, maxval=1.0, dtype=tf.float32)
+  keep_original = keep_original < keep_original_prob
+  keep_original = keep_original | (sorted_fake_data == b'')
+  sorted_fake_data = tf.where(
+    keep_original,
+    original_spans,
+    sorted_fake_data)
+
+  zeros = tf.zeros([batch_size], tf.int32)
+  new_message = tf.strings.substr(message, zeros, zeros)
+  for field_num in range(max_fields):
+
+    if field_num == 0:
+      start_slice = tf.zeros([batch_size], dtype=tf.int32)
+    else:
+      start_slice = sorted_span_end[:, field_num - 1]
+
+    lengths = sorted_span_start[:, field_num] - start_slice
+
+    new_message += tf.strings.substr(message, start_slice, lengths) + sorted_fake_data[:, field_num]
+
+  new_message += tf.strings.substr(message, sorted_span_end[:, field_num], -tf.ones([batch_size], dtype=tf.int32))
+
+  fake_lens = tf.strings.length(sorted_fake_data)
+  orig_lens = sorted_span_end - sorted_span_start
+
+  diff_lens = fake_lens - orig_lens
+
+  cumsum = tf.cumsum(diff_lens, axis=-1, exclusive=True)
+
+  sorted_span_start = cumsum + sorted_span_start
+  sorted_span_end = sorted_span_start + fake_lens
+
+  span_start = tf.gather_nd(sorted_span_start, unsort_indices)
+  span_end = tf.gather_nd(sorted_span_end, unsort_indices)
+
+  return new_message, span_start, span_end
+
+
+@tf.function
+def char_to_wordpiece(span_start, span_end, tokens_dict, max_seq_length, bert_dir):
+  char_start = span_start
+  char_end = span_end
+
+  new_span_start, new_span_end = char_to_wordpiece_spans(
+    ws_tokens=tokens_dict['ws_tokens'],
+    ws_start=tokens_dict['ws_start'],
+    ws_end=tokens_dict['ws_end'],
+    wp_tokens=tokens_dict['wp_tokens'],
+    wp_start=tokens_dict['wp_start'],
+    wp_end=tokens_dict['wp_end'],
+    char_start=char_start,
+    char_end=char_end,
+    max_seq_length=tf.constant(max_seq_length, dtype=tf.int64)
+  )
+
+  wp_span_start = tf.ensure_shape(new_span_start, span_start.shape)
+  wp_span_end = tf.ensure_shape(new_span_end, span_end.shape)
+
+  return wp_span_start, wp_span_end
