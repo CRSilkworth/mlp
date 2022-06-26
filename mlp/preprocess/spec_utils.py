@@ -1,4 +1,4 @@
-from typing import Optional, List, Test
+from typing import Optional, List
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_transform.tf_metadata import schema_utils
 
