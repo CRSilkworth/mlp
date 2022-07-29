@@ -1,4 +1,4 @@
-FROM tensorflow/tfx:1.9.0
+FROM tensorflow/tfx:1.8.0
 
 WORKDIR /mlp
 COPY ./mlp ./mlp
