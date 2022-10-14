@@ -3,9 +3,10 @@ import tensorflow as tf
 from mlp.preprocess.sparse_functions import sparse_to_dense_with_fill
 
 
-def concat_inputs(inputs, key, num_steps, expected_dtype=None, default_value=None):
+def concat_inputs(inputs, key, num_steps, expected_dtype=None, default_value=None, start_step=0):
   concated = []
   for step_num in range(num_steps):
+    step_num = start_step + step_num
     filled = sparse_to_dense_with_fill(
       inputs[key + '_' + str(step_num)],
       expected_dtype=expected_dtype,
