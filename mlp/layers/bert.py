@@ -76,7 +76,7 @@ class BertTokenizer(tf.keras.layers.Layer):
 
     return tokens
 
-  @tf.function
+  @tf.function(experimental_relax_shapes=True)
   def tokens_and_spans(self, strings, begin_token='[CLS] '):
     # Define the tokenizers and tokenize the strings.
     if type(strings) == list:
