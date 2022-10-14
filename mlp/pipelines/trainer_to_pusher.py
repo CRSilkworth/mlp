@@ -81,11 +81,10 @@ def create_pipeline(
 
   if model_uri is not None:
     model_importer = Importer(
-      instance_name='import_model',
       source_uri=model_uri,
       artifact_type=standard_artifacts.Model,
       reimport=False
-    )
+    ).with_id('model_importer')
     components.append(model_importer)
     base_model = model_importer.outputs['result']
   else:
