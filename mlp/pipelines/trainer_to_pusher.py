@@ -62,12 +62,13 @@ def create_pipeline(
   ).with_id('schema_importer')
   components.append(schema_importer)
 
-  transform_graph_importer = Importer(
-    source_uri=transform_graph_uri,
-    artifact_type=standard_artifacts.TransformGraph,
-    reimport=False
-  ).with_id('transform_graph_importer')
-  components.append(transform_graph_importer)
+  if transform_graph_uri is not None:
+    transform_graph_importer = Importer(
+      source_uri=transform_graph_uri,
+      artifact_type=standard_artifacts.TransformGraph,
+      reimport=False
+    ).with_id('transform_graph_importer')
+    components.append(transform_graph_importer)
 
   examples_importer = Importer(
     source_uri=examples_uri,
@@ -95,7 +96,7 @@ def create_pipeline(
     examples=examples_importer.outputs['result'],
     # custom_executor_spec=executor_spec.ExecutorClassSpec(GenericExecutor),
     schema=schema_importer.outputs['result'],
-    transform_graph=transform_graph_importer.outputs['result'],
+    transform_graph=transform_graph_importer.outputs['result'] if transform_graph_uri is not None else None,
     train_args=trainer_pb2.TrainArgs(),
     eval_args=trainer_pb2.EvalArgs(),
     run_fn='{}.run_fn'.format(pipeline_mod),
