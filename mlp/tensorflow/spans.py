@@ -24,7 +24,7 @@ def char_to_wordpiece_spans(
     ws_end: The ends of the spans after being passed to the WhitespaceTokenizer.tokenize_with_offsets
     wp_tokens: the tokens returned by the WordpieceTokenizer (after being passed to the WhitespaceTokenizer).
     wp_start: The starts of the spans after being passed to the WordpieceTokenizer.tokenize_with_offsets (and before that the WhitespaceTokenizer)
-    wp_start: The ends of the spans after being passed to the WordpieceTokenizer.tokenize_with_offsets (and before that the WhitespaceTokenizer)
+    wp_end: The ends of the spans after being passed to the WordpieceTokenizer.tokenize_with_offsets (and before that the WhitespaceTokenizer)
     char_start: The starts of the character indexed spans.
     char_start: The ends of the character indexed spans.
     max_seq_length: The maximum allowed number of wordpiece tokens
@@ -110,6 +110,114 @@ def char_to_wordpiece_spans(
     new_span_ends,
   )
   return new_span_starts, new_span_ends
+
+
+@tf.function(experimental_relax_shapes=True)
+def wordpiece_to_char_spans(
+  ws_start: tf.Tensor,
+  ws_end: tf.Tensor,
+  wp_start: tf.Tensor,
+  wp_end: tf.Tensor,
+  span_start: tf.Tensor,
+  span_end: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
+  """Convert character span indices into wordpiece span indices.
+
+  Parameters
+  ----------
+    ws_start: The starts of the spans after being passed to the WhitespaceTokenizer.tokenize_with_offsets
+    ws_end: The ends of the spans after being passed to the WhitespaceTokenizer.tokenize_with_offsets
+    wp_start: The starts of the spans after being passed to the WordpieceTokenizer.tokenize_with_offsets (and before that the WhitespaceTokenizer)
+    wp_end: The ends of the spans after being passed to the WordpieceTokenizer.tokenize_with_offsets (and before that the WhitespaceTokenizer)
+    span_start: The starts of the wordpiece indexed spans.
+    span_end: The ends of the wordpiece indexed spans.
+
+  Returns
+  -------
+  char_start: The span beginnings in the character indices
+  char_end: The span ends in the character indices
+
+  """
+  word_piece_shape = tf.cast(wp_start.bounding_shape(), tf.int32)
+  max_ws_words = tf.cast(word_piece_shape[1], tf.int32)
+  max_wps = tf.cast(word_piece_shape[2], tf.int32)
+
+  span_shape = tf.cast(tf.shape(span_start), tf.int32)
+  num_spans = tf.cast(span_shape[1], tf.int32)
+
+  batch_size = tf.cast(word_piece_shape[0], tf.int32)
+
+  new_span_start = tf.TensorArray(tf.int64, batch_size * num_spans)
+  new_span_end = tf.TensorArray(tf.int64, batch_size * num_spans)
+
+  # Iterate through each row in the batch
+  for row_num in tf.range(batch_size, dtype=tf.int32):
+    num_ws_words = tf.cast(wp_start[row_num].bounding_shape()[0], tf.int32)
+
+    # Create the mapping between the word piece index from before the
+    # merge_dims is performed and after.
+    wp_indices = tf.range(tf.shape(wp_start[row_num].values)[0], dtype=tf.int32)
+    wp_indices = tf.RaggedTensor.from_row_starts(
+      wp_indices,
+      wp_start[row_num].row_starts()
+    )
+
+    # Iterate through each span
+    for span_num in tf.range(num_spans, dtype=tf.int32):
+
+      # Pull out all the pan information and the array_index. i.e. where in the
+      # TensorArray to place it.
+      array_index = row_num * num_spans + span_num
+      wp_span_start = tf.cast(span_start[row_num][span_num], dtype=tf.int32)
+      wp_span_end = tf.cast(span_end[row_num][span_num], dtype=tf.int32)
+
+      # Iterate through all the white space tokenized words.
+      for ws_word_num in tf.range(max_ws_words, dtype=tf.int32):
+
+        # Make sure it's a valid white space tokenized word.
+        if ws_word_num < num_ws_words:
+
+          # Get the number of word pieces for this row/white space word
+          num_wps = tf.cast(
+            tf.shape(wp_start[row_num][ws_word_num])[0],
+            tf.int32
+          )
+
+          # Iterate through every wordpiece
+          for wp_num in tf.range(max_wps, dtype=tf.int32):
+
+            # Make sure it's a valid wordpiece
+            if wp_num < num_wps:
+              wp_index = wp_indices[ws_word_num, wp_num]
+
+              # If the constructed word piece index (wp_index) is the same as
+              # the given span_start index, then write it to the tensor array.
+              if wp_span_start == wp_index:
+                new_span_start = new_span_start.write(
+                  array_index,
+                  tf.cast(ws_start[row_num][ws_word_num], tf.int64) + wp_start[row_num][ws_word_num][wp_num]
+                )
+
+              # If the constructed word piece index (wp_index) is the same as
+              # the previous span_end index, then write it to the tensor array.
+              # You take the previous one because the end is not inclusive.
+              if wp_span_end - 1 == wp_index:
+                new_span_end = new_span_end.write(
+                  array_index,
+                  tf.cast(ws_start[row_num][ws_word_num], tf.int64) + wp_end[row_num][ws_word_num][wp_num]
+                )
+
+  char_start = new_span_start.stack()
+  char_start = tf.reshape(char_start, [batch_size, num_spans])
+  char_end = new_span_end.stack()
+  char_end = tf.reshape(char_end, [batch_size, num_spans])
+
+  # You can omit this if you want to allow invalid spans. However because of
+  # the way you take the previous wp token end to define get the char_end,
+  # you'll need to guard against char_end < char_start when span_start ==
+  # span_end.
+  char_end = tf.math.maximum(char_start, char_end)
+
+  return char_start, char_end
 
 
 @tf.function
