@@ -3,6 +3,8 @@ import tempfile
 import os
 import json
 from hashlib import sha1
+from mlp.utils.dirs import pipeline_var_names
+from mlp.utils.sql import query_with_kwargs
 
 
 class VarConfig(object):
@@ -23,6 +25,42 @@ class VarConfig(object):
       with open(temp_file_name, 'r') as temp_file:
         vars = json.load(temp_file)
     self.add_vars(**vars)
+
+  def _pipeline_params_from_json(self, file_path):
+    with open(file_path, 'r') as temp_file:
+      vars = json.load(temp_file)
+    self.add_vars(**vars)
+    
+    self.version = os.environ.get('PROJECT_VERSION')
+    self.add_vars(
+      **pipeline_var_names(
+        self.run_dir,
+        self.run_str,
+        self.mlp_project,
+        self.mlp_subproject,
+        self.runner,
+        self.pipeline_type,
+        self.experiment
+      )
+    )
+    schema_path = [self.run_root] + self.schema_params
+    self.schema_uri = os.path.join(*schema_path)
+    self.image_name = 'gcr.io/{gcp_project}/{mlp_project}:{version}'.format(
+      gcp_project=self.gcp_project,
+      mlp_project=self.mlp_project,
+      version=self.version
+    )
+    # If running with dataflow
+    self.beam_pipeline_args += [
+      '--project=' + self.gcp_project,
+      '--temp_location=' + os.path.join(self.run_root, 'tmp'),
+      '--region=' + self.gcp_region,
+      '--sdk_container_image=' + self.image_name,
+    ]
+    self.hash = self.get_hash()
+    self.write(self.vc_config_path)
+    if self.query_params:
+        self.query = query_with_kwargs(**self.query_params)
 
   def __setattr__(self, name, value):
     if hasattr(self, 'is_initialized') and self.is_initialized:
