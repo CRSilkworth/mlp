@@ -59,7 +59,7 @@ class VarConfig(object):
     ]
     self.hash = self.get_hash()
     self.write(self.vc_config_path)
-    if self.query_params:
+    if 'query_params' in self.get_vars():
         self.query = query_with_kwargs(**self.query_params)
 
   def __setattr__(self, name, value):
