@@ -1,5 +1,4 @@
 export MLP_VERSION='0.6.0'
-export PROJECT_VERSION='0.0.0'
 
 # Set your default project/compute zone
 export PROJECT='__gcp_project__'
