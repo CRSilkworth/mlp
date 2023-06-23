@@ -1,4 +1,4 @@
-FROM tensorflow/tfx:1.10.0
+FROM tensorflow/tensorflow:2.12.0-gpu
 
 WORKDIR /mlp
 COPY ./mlp ./mlp
@@ -9,6 +9,5 @@ COPY proto_gen.py ./
 COPY README.md ./
 
 ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:/usr/local/cuda/lib64
-ENV pip=/opt/conda/bin/pip
-ENTRYPOINT ["/opt/apache/beam/boot"]
+RUN pip install --upgrade pip
 RUN pip install .
