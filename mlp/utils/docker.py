@@ -3,7 +3,6 @@ from absl import logging
 from subprocess import Popen, PIPE
 from typing import Text, Optional
 
-
 def build_image(
   image_name: Text,
   image_tag: Text,
@@ -19,9 +18,15 @@ def build_image(
   build_args = ' '.join(build_args)
 
   if docker_file is None:
-    command = 'docker build . -t {image_name}:{image_tag} {build_args}'.format(image_name=image_name, image_tag=image_tag, build_args=build_args)
+    command = 'docker build . -t {image_name}:{image_tag} {build_args}'.format(
+      image_name=image_name, image_tag=image_tag, build_args=build_args)
   else:
-    command = 'docker build . -f {docker_file} -t {image_name}:{image_tag} {build_args}'.format(image_name=image_name, image_tag=image_tag, docker_file=docker_file, build_args=build_args)
+    command = 'docker build -f {docker_file} {dir} -t {image_name}:{image_tag} {build_args}'.format(
+      image_name=image_name,
+      image_tag=image_tag,
+      docker_file=docker_file,
+      dir=dir,
+      build_args=build_args)
 
   p = Popen(command, stdout=PIPE, stderr=PIPE, shell=True)
 
