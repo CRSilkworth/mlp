@@ -41,7 +41,7 @@ def check_environment_set():
 
 def create_update_run(
         pipeline_path: Text, project_dir: Text, pipeline_name: Text,
-        pipeline_docker_path: Text, experiment: Optional[Text] = "dev",
+        pipeline_docker_path: Text, mlp_project: Text, experiment: Optional[Text] = "dev",
         update: Optional[bool] = False, upgrade: Optional[bool] = False):
     check_environment_set()
     # Create a unique identifier for the run.
@@ -91,10 +91,10 @@ def create_update_run(
     # Run the pipeline file to get the pipeline package to upload to kubeflow
     run_pipeline_file(pipeline_path, project_dir, run_str, auto_inc_version, experiment)
     context_path = os.path.dirname(pipeline_docker_path)
-    pipeline_package_path = context_path + '/' + pipeline_name + ".tar.gz"
-    image_name = "gcr.io/{gcp_project}/{pipeline_name}".format(
+    pipeline_package_path = pipeline_name + ".tar.gz"
+    image_name = "gcr.io/{gcp_project}/{mlp_project}".format(
         gcp_project=os.environ.get("PROJECT"),
-        pipeline_name=pipeline_name,
+        mlp_project=mlp_project,
     )
 
     # Create and push the image if it doesn't already exist on gcp
