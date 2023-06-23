@@ -39,6 +39,10 @@ def check_environment_set():
             )
 
 
+def get_pipelines(client, pipeline_id, sort_by="created_at desc"):
+    return client.list_pipeline_versions(pipeline_id, sort_by=sort_by).versions
+
+
 def create_update_run(
         pipeline_path: Text, project_dir: Text, pipeline_name: Text,
         pipeline_docker_path: Text, mlp_project: Text, experiment: Optional[Text] = "dev",
@@ -67,7 +71,7 @@ def create_update_run(
     )
     pipeline_id = client.get_pipeline_id(pipeline_name)
     pipeline_versions = []
-    pipelines = client.list_pipeline_versions(pipeline_id, sort_by="created_at desc").versions
+    pipelines = get_pipelines(client, pipeline_id)
     if pipeline_id and pipelines:
         # Upload pipeline version if it doesn't exist
         pipeline_versions = [d.name for d in pipelines]
