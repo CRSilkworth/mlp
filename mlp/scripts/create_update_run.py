@@ -39,8 +39,33 @@ def check_environment_set():
             )
 
 
-def get_pipelines(client, pipeline_id, sort_by="created_at desc"):
-    return client.list_pipeline_versions(pipeline_id, sort_by=sort_by).versions
+def get_pipelines_properties(client,
+                             pipeline_id,
+                             changed_flag,
+                             update,
+                             upgrade, sort_by="created_at desc"):
+    pipeline_versions = []
+    pipelines = client.list_pipeline_versions(pipeline_id, sort_by=sort_by).versions
+    if pipeline_id and pipelines:
+        # Upload pipeline version if it doesn't exist
+        pipeline_versions = [d.name for d in pipelines]
+        latest_version = pipeline_versions[0]
+        if changed_flag:
+            parts = latest_version.split('-')[0].split(".")
+            if upgrade:
+                parts[-3] = str(int(parts[-3]) + 1)
+                auto_inc_version = parts[-3] + '.0.0'
+            elif update:
+                parts[-2] = str(int(parts[-2]) + 1)
+                auto_inc_version = parts[-3] + '.' + parts[-2] + '.0'
+            else:
+                parts[-1] = str(int(parts[-1]) + 1)
+                auto_inc_version = ".".join(parts)
+        else:
+            auto_inc_version = latest_version
+    else:
+        auto_inc_version = "0.0.1"
+    return auto_inc_version, pipeline_versions
 
 
 def create_update_run(
@@ -70,28 +95,10 @@ def create_update_run(
         other_client_secret=os.environ.get("OTHER_CLIENT_SECRET"),
     )
     pipeline_id = client.get_pipeline_id(pipeline_name)
-    pipeline_versions = []
-    pipelines = get_pipelines(client, pipeline_id)
-    if pipeline_id and pipelines:
-        # Upload pipeline version if it doesn't exist
-        pipeline_versions = [d.name for d in pipelines]
-        latest_version = pipeline_versions[0]
-        if changed_flag:
-            parts = latest_version.split('-')[0].split(".")
-            if upgrade:
-                parts[-3] = str(int(parts[-3]) + 1)
-                auto_inc_version = parts[-3] + '.0.0'
-            elif update:
-                parts[-2] = str(int(parts[-2]) + 1)
-                auto_inc_version = parts[-3] + '.' + parts[-2] + '.0'
-            else:
-                parts[-1] = str(int(parts[-1]) + 1)
-                auto_inc_version = ".".join(parts)
-        else:
-            auto_inc_version = latest_version
-    else:
-        auto_inc_version = "0.0.1"
-
+    auto_inc_version, pipeline_versions = get_pipelines_properties(client,
+                                                                   pipeline_id,
+                                                                   changed_flag,
+                                                                   update, upgrade)
     # Run the pipeline file to get the pipeline package to upload to kubeflow
     run_pipeline_file(pipeline_path, project_dir, run_str, auto_inc_version, experiment)
     context_path = os.path.dirname(pipeline_docker_path)
