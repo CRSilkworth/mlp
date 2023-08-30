@@ -25,8 +25,6 @@ def check_environment_set():
         "PROJECT",
         "CLIENT_ID",
         "CLIENT_SECRET",
-        # "OTHER_CLIENT_ID",
-        # "OTHER_CLIENT_SECRET",
         "ENDPOINT",
         "NAMESPACE",
         "MLP_VERSION",
@@ -98,8 +96,6 @@ def create_update_run(
         host=os.environ.get("ENDPOINT"),
         client_id=os.environ.get("CLIENT_ID"),
         namespace=os.environ.get("NAMESPACE"),
-        other_client_id=os.environ.get("OTHER_CLIENT_ID"),
-        other_client_secret=os.environ.get("OTHER_CLIENT_SECRET"),
     )
     pipeline_id = client.get_pipeline_id(pipeline_name)
     auto_inc_version = "0.0.1"
