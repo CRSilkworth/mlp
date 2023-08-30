@@ -25,25 +25,24 @@ def check_environment_set():
         "PROJECT",
         "CLIENT_ID",
         "CLIENT_SECRET",
-        "OTHER_CLIENT_ID",
-        "OTHER_CLIENT_SECRET",
+        # "OTHER_CLIENT_ID",
+        # "OTHER_CLIENT_SECRET",
         "ENDPOINT",
         "NAMESPACE",
-        "MLP_VERSION"
+        "MLP_VERSION",
     ]
     for environ in environs:
         if os.environ.get(environ) is None or os.environ.get(environ).strip() == "":
             sys.exit(
-                "{environ} not set. Must set to appropriate value before runnign this script."
-                .format(environ=environ)
+                "{environ} not set. Must set to appropriate value before runnign this script.".format(
+                    environ=environ
+                )
             )
 
 
-def get_pipelines_properties(client,
-                             pipeline_id,
-                             changed_flag,
-                             update,
-                             upgrade, sort_by="created_at desc"):
+def get_pipelines_properties(
+    client, pipeline_id, changed_flag, update, upgrade, sort_by="created_at desc"
+):
     pipeline_versions = []
     pipelines = client.list_pipeline_versions(pipeline_id, sort_by=sort_by).versions
     if pipeline_id and pipelines:
@@ -51,13 +50,13 @@ def get_pipelines_properties(client,
         pipeline_versions = [d.name for d in pipelines]
         latest_version = pipeline_versions[0]
         if changed_flag:
-            parts = latest_version.split('-')[0].split(".")
+            parts = latest_version.split("-")[0].split(".")
             if upgrade:
                 parts[-3] = str(int(parts[-3]) + 1)
-                auto_inc_version = parts[-3] + '.0.0'
+                auto_inc_version = parts[-3] + ".0.0"
             elif update:
                 parts[-2] = str(int(parts[-2]) + 1)
-                auto_inc_version = parts[-3] + '.' + parts[-2] + '.0'
+                auto_inc_version = parts[-3] + "." + parts[-2] + ".0"
             else:
                 parts[-1] = str(int(parts[-1]) + 1)
                 auto_inc_version = ".".join(parts)
@@ -69,17 +68,25 @@ def get_pipelines_properties(client,
 
 
 def create_update_run(
-        pipeline_path: Text, project_dir: Text, pipeline_name: Text,
-        pipeline_docker_path: Text, mlp_project: Text, experiment: Optional[Text] = "dev",
-        update: Optional[bool] = False, upgrade: Optional[bool] = False):
+    pipeline_path: Text,
+    project_dir: Text,
+    pipeline_name: Text,
+    pipeline_docker_path: Text,
+    mlp_project: Text,
+    experiment: Optional[Text] = "dev",
+    update: Optional[bool] = False,
+    upgrade: Optional[bool] = False,
+):
     check_environment_set()
     # Create a unique identifier for the run.
     run_str = datetime.datetime.utcnow().strftime("%Y-%m-%d-%H-%M-%S")
 
     repo = Repo(search_parent_directories=True)
-    pattern = r'.*\.py$'  # regex pattern to match python files
-    exclude_pattern = r'.*(setup|__init__)\.py$'
-    changed_files = [item.a_path for item in repo.index.diff(None) + repo.index.diff('HEAD')]
+    pattern = r".*\.py$"  # regex pattern to match python files
+    exclude_pattern = r".*(setup|__init__)\.py$"
+    changed_files = [
+        item.a_path for item in repo.index.diff(None) + repo.index.diff("HEAD")
+    ]
     changed_flag = False
     for f in changed_files:
         if re.match(pattern, f) and not re.match(exclude_pattern, f):
@@ -99,7 +106,8 @@ def create_update_run(
     pipeline_versions = []
     if pipeline_id is not None:
         auto_inc_version, pipeline_versions = get_pipelines_properties(
-            client, pipeline_id, changed_flag, update, upgrade)
+            client, pipeline_id, changed_flag, update, upgrade
+        )
 
     # Run the pipeline file to get the pipeline package to upload to kubeflow
     run_pipeline_file(pipeline_path, project_dir, run_str, auto_inc_version, experiment)
@@ -113,11 +121,12 @@ def create_update_run(
     # Create and push the image if it doesn't already exist on gcp
     if remote_image_exists(image_name, auto_inc_version):
         logging.warning(
-            "Image {}:{} already exists remotely it won't be built"
-            .format(image_name, auto_inc_version) +
-            ". If you have changes to local project they may not be in the remote image" +
-            ". Increment the version number in version.py to build a new image" +
-            " with the current changes."
+            "Image {}:{} already exists remotely it won't be built".format(
+                image_name, auto_inc_version
+            )
+            + ". If you have changes to local project they may not be in the remote image"
+            + ". Increment the version number in version.py to build a new image"
+            + " with the current changes."
         )
     else:
         if not local_image_exists(image_name, auto_inc_version):
@@ -131,15 +140,17 @@ def create_update_run(
                 auto_inc_version,
                 mlp_version=os.environ.get("MLP_VERSION"),
                 dir=context_path,
-                docker_file=pipeline_docker_path
+                docker_file=pipeline_docker_path,
             )
             if exit_code != 0:
                 sys.exit(
-                    "Failed to build image {image_name}:{image_tag}. "
-                    .format(image_name=image_name, image_tag=auto_inc_version) +
-                    "Try building yourself with 'docker build . -t {image_name}:{image_tag}'"
-                    .format(image_name=image_name, image_tag=auto_inc_version) +
-                    " to see what's wrong"
+                    "Failed to build image {image_name}:{image_tag}. ".format(
+                        image_name=image_name, image_tag=auto_inc_version
+                    )
+                    + "Try building yourself with 'docker build . -t {image_name}:{image_tag}'".format(
+                        image_name=image_name, image_tag=auto_inc_version
+                    )
+                    + " to see what's wrong"
                 )
 
         exit_code = push_image(image_name, auto_inc_version)
@@ -147,8 +158,8 @@ def create_update_run(
             sys.exit(
                 "Failed to push image {image_name}:{image_tag}. ".format(
                     image_name=image_name, image_tag=auto_inc_version
-                ) +
-                "Try pushing yourself with 'docker push {image_name}:{image_tag}".format(
+                )
+                + "Try pushing yourself with 'docker push {image_name}:{image_tag}".format(
                     image_name=image_name, image_tag=auto_inc_version
                 )
                 + " to see what's wrong."
@@ -167,9 +178,7 @@ def create_update_run(
     pipeline_objs = pipeline_objs if pipeline_objs is not None else []
     pipelines = [d.name for d in pipeline_objs]
     if pipeline_name not in pipelines:
-        client.upload_pipeline(
-            pipeline_package_path, pipeline_name=pipeline_name
-        )
+        client.upload_pipeline(pipeline_package_path, pipeline_name=pipeline_name)
     if pipeline_id is None:
         pipeline_id = client.get_pipeline_id(pipeline_name)
     if auto_inc_version not in pipeline_versions:
@@ -183,11 +192,9 @@ def create_update_run(
     )
 
     # Launch run
-    job_name = pipeline_name + '-' + auto_inc_version
+    job_name = pipeline_name + "-" + auto_inc_version
     run = client.run_pipeline(
-        experiment_id=experiment_id,
-        job_name=job_name,
-        version_id=pipeline_version_id
+        experiment_id=experiment_id, job_name=job_name, version_id=pipeline_version_id
     )
     if changed_flag:
-        repo.git.commit(a=True, m='pipeline changed, run name: ' + run.name)
+        repo.git.commit(a=True, m="pipeline changed, run name: " + run.name)
