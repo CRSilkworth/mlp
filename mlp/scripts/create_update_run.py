@@ -157,4 +157,5 @@ def create_update_run(pipeline_path: Text, experiment: Optional[Text] = "dev"):
         experiment_id=experiment_id,
         job_name=job_name,
         version_id=pipeline_version_id,
+        enable_caching=False
     )
