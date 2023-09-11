@@ -194,7 +194,10 @@ def create_update_run(
     # Launch run
     job_name = pipeline_name + "-" + auto_inc_version
     run = client.run_pipeline(
-        experiment_id=experiment_id, job_name=job_name, version_id=pipeline_version_id
+        experiment_id=experiment_id,
+        job_name=job_name,
+        version_id=pipeline_version_id,
+        enable_caching=False
     )
     if changed_flag:
         repo.git.commit(a=True, m="pipeline changed, run name: " + run.name)
