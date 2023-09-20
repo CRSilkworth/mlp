@@ -98,8 +98,8 @@ def create_update_run(
         host=os.environ.get("ENDPOINT"),
         client_id=os.environ.get("CLIENT_ID"),
         namespace=os.environ.get("NAMESPACE"),
-        other_client_id=os.environ.get("OTHER_CLIENT_ID"),
-        other_client_secret=os.environ.get("OTHER_CLIENT_SECRET"),
+        # other_client_id=os.environ.get("OTHER_CLIENT_ID"),
+        # other_client_secret=os.environ.get("OTHER_CLIENT_SECRET"),
     )
     pipeline_id = client.get_pipeline_id(pipeline_name)
     auto_inc_version = "0.0.1"
@@ -197,7 +197,7 @@ def create_update_run(
         experiment_id=experiment_id,
         job_name=job_name,
         version_id=pipeline_version_id,
-        enable_caching=False
+        enable_caching=False,
     )
     if changed_flag:
         repo.git.commit(a=True, m="pipeline changed, run name: " + run.name)
