@@ -34,9 +34,8 @@ def check_environment_set():
     for environ in environs:
         if os.environ.get(environ) is None or os.environ.get(environ).strip() == "":
             sys.exit(
-                "{environ} not set. Must set to appropriate value before runnign this script.".format(
-                    environ=environ
-                )
+                "{environ} not set. Must set to appropriate value before runnign this script."
+                .format(environ=environ)
             )
 
 
@@ -69,6 +68,7 @@ def get_pipelines_properties(
 
 def create_update_run(
     pipeline_path: Text,
+    pipeline_version: Text,
     project_dir: Text,
     pipeline_name: Text,
     pipeline_docker_path: Text,
@@ -102,12 +102,12 @@ def create_update_run(
         other_client_secret=os.environ.get("OTHER_CLIENT_SECRET"),
     )
     pipeline_id = client.get_pipeline_id(pipeline_name)
-    auto_inc_version = "0.0.1"
     pipeline_versions = []
     if pipeline_id is not None:
         auto_inc_version, pipeline_versions = get_pipelines_properties(
             client, pipeline_id, changed_flag, update, upgrade
         )
+    auto_inc_version = pipeline_version
 
     # Run the pipeline file to get the pipeline package to upload to kubeflow
     run_pipeline_file(pipeline_path, project_dir, run_str, auto_inc_version, experiment)
@@ -147,9 +147,8 @@ def create_update_run(
                     "Failed to build image {image_name}:{image_tag}. ".format(
                         image_name=image_name, image_tag=auto_inc_version
                     )
-                    + "Try building yourself with 'docker build . -t {image_name}:{image_tag}'".format(
-                        image_name=image_name, image_tag=auto_inc_version
-                    )
+                    + "Try building yourself with 'docker build . -t {image_name}:{image_tag}'"
+                    .format(image_name=image_name, image_tag=auto_inc_version)
                     + " to see what's wrong"
                 )
 
