@@ -7,6 +7,7 @@ from typing import Optional, Text
 import os
 import sys
 import datetime
+from mlp.utils.config import VarConfig
 from mlp.utils.docker import (
     build_image,
     push_image,
@@ -14,6 +15,7 @@ from mlp.utils.docker import (
     remote_image_exists,
 )
 from mlp.utils.kubeflow import get_pipeline_version_id, run_pipeline_file
+from mlp.utils.kubeflow import get_beam_and_kubeflow_config
 import kfp
 from git import Repo
 import re
@@ -72,6 +74,7 @@ def create_update_run(
     project_dir: Text,
     pipeline_name: Text,
     pipeline_docker_path: Text,
+    pipeline_config_path: Text,
     mlp_project: Text,
     experiment: Optional[Text] = "dev",
     update: Optional[bool] = False,
@@ -111,6 +114,14 @@ def create_update_run(
 
     # Run the pipeline file to get the pipeline package to upload to kubeflow
     run_pipeline_file(pipeline_path, project_dir, run_str, auto_inc_version, experiment)
+    vc = VarConfig(
+        pipeline_config_path,
+        run_str=run_str,
+        version=auto_inc_version,
+        experiment=experiment,
+    )
+    vc.add_vars(**get_beam_and_kubeflow_config(vc))
+
     context_path = os.path.dirname(pipeline_docker_path)
     pipeline_package_path = pipeline_name + ".tar.gz"
     image_name = "gcr.io/{gcp_project}/{mlp_project}".format(
@@ -172,6 +183,7 @@ def create_update_run(
         client.create_experiment(experiment)
     experiment_id = client.get_experiment(experiment_name=experiment).id
 
+    auto_inc_version = auto_inc_version + "-" + experiment
     # Upload pipeline if it doesn't exist
     pipeline_objs = client.list_pipelines(page_size=100000).pipelines
     pipeline_objs = pipeline_objs if pipeline_objs is not None else []
@@ -195,6 +207,7 @@ def create_update_run(
     run = client.run_pipeline(
         experiment_id=experiment_id,
         job_name=job_name,
+        pipeline_root=os.path.join(vc.run_root, "data"),
         version_id=pipeline_version_id,
         enable_caching=False,
     )
