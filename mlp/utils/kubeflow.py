@@ -76,8 +76,11 @@ def get_beam_and_kubeflow_config(var_config):
         )
     )
 
-    schema_path = [vars["run_root"]] + var_config.schema_params
-    vars["schema_uri"] = os.path.join(*schema_path)
+    if "schema_uri" not in var_config.get_vars():
+        schema_path = [vars["run_root"]] + var_config.schema_params
+        vars["schema_uri"] = os.path.join(*schema_path)
+    else:
+        vars["schema_uri"] = var_config.schema_uri
     vars["image_name"] = "gcr.io/{gcp_project}/{mlp_project}:{version}".format(
         gcp_project=var_config.gcp_project,
         mlp_project=var_config.mlp_project,
